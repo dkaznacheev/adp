@@ -20,6 +20,10 @@ fun rddtest() {
     println(res)
 }
 
-fun main() {
-    sertest()
+fun main(args: Array<String>) {
+    if (args.isNotEmpty() && args[0] == "worker") {
+        Worker(args[1].toInt()).start()
+    } else {
+        rddtest()
+    }
 }

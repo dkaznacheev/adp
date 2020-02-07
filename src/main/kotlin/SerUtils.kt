@@ -2,6 +2,7 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
+import java.util.*
 
 object SerUtils {
     fun serialize(o: Any): ByteArray {
@@ -13,5 +14,13 @@ object SerUtils {
 
     fun deserialize(serialized: ByteArray): Any {
         return ObjectInputStream(ByteArrayInputStream(serialized)).readObject()
+    }
+
+    fun base64encode(a: ByteArray): String {
+        return String(Base64.getEncoder().encode(a))
+    }
+
+    fun base64decode(s: String): ByteArray {
+        return Base64.getDecoder().decode(s)
     }
 }
