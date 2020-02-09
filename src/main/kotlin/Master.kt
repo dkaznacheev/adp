@@ -42,14 +42,26 @@ class Master {
         return bis.readObject()
     }
 
-    private fun runOnWorker(port: Int, serialized: ByteArray): ByteArray {
+    private fun runOnWorker(port: Int, serialized: ByteArray, path: String = "/run"): ByteArray {
         println("trying to send code")
         val s = SerUtils.base64encode(serialized)
         return runBlocking(Dispatchers.IO){
-            val res = client.post<String>("http://127.0.0.1:$port/run") {
+            val res = client.post<String>("http://127.0.0.1:$port$path") {
                 body = s
             }
             SerUtils.base64decode(res)
         }
+    }
+
+    fun <T> executeAsync(op: ReduceOperationAsync<T>): T? {
+        val serialized = op.serialize()
+        return workers
+            .map {
+                runOnWorker(it, serialized, path = "/runAsync")
+            }
+            .map {
+                println("trying to deser")
+                deserializeResult(it) as T
+            }.reduce(op.f)
     }
 }

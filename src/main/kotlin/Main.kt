@@ -20,10 +20,20 @@ fun rddtest() {
     println(res)
 }
 
+fun rddTestAsync() {
+    val master = Master()
+    val res = SourceRDDAsync(master, "lines.txt").map {
+        it
+    }.reduce(String::class.java) { a, b ->
+        a + b
+    }
+    println(res)
+}
+
 fun main(args: Array<String>) {
     if (args.isNotEmpty() && args[0] == "worker") {
         Worker(args[1].toInt()).start()
     } else {
-        rddtest()
+        rddTestAsync()
     }
 }

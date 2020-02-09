@@ -30,6 +30,9 @@ class Worker(port: Int) {
                     call.respondText(status = HttpStatusCode.InternalServerError){""}
                 }
             }
+            post("/runAsync") {
+
+            }
         }
     }
 
