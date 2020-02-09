@@ -17,12 +17,11 @@ import kotlin.coroutines.coroutineContext
 class Worker(port: Int) {
     private suspend fun processRunCall(call: ApplicationCall, isAsync: Boolean = false) {
         try {
-            println("received a call")
             val body = call.receive<String>()
             val serialized = SerUtils.base64decode(body)
 
             val ropAny = SerUtils.deserialize(serialized)
-            val result = if (isAsync) {
+            val result = if (!isAsync) {
                 val rop = ropAny as ReduceOperationImpl<*>
                 rop.executeSerializable()
             } else {
@@ -45,10 +44,12 @@ class Worker(port: Int) {
                 call.respondText { "Hello from port $port" }
             }
             post("/run") {
-
+                println("received a call")
+                processRunCall(call)
             }
             post("/runAsync") {
-
+                println("received async call")
+                processRunCall(call, isAsync = true)
             }
         }
     }
