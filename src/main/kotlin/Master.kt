@@ -2,14 +2,12 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.io.ByteArrayInputStream
 import java.io.ObjectInputStream
 
 class Master {
-    private val workers = listOf(8080)
+    private val workers = listOf(8080, 8081)
     private val client = HttpClient()
 
     fun test() {
