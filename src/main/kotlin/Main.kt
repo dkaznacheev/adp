@@ -1,3 +1,5 @@
+import io.ktor.client.HttpClient
+import io.ktor.client.request.get
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
@@ -23,9 +25,9 @@ fun rddtest() {
 fun rddTestAsync() {
     val master = Master()
     val res = SourceRDDAsync(master, "lines.txt").map {
-        it
+        HttpClient().get<String>(it)
     }.reduce(String::class.java) { a, b ->
-        a + b
+        a + "\n\n" + b
     }
     println(res)
 }

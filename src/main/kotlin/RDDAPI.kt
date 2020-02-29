@@ -1,5 +1,3 @@
-import java.io.Serializable
-
 abstract class RDD<T>(val master: Master) {
     fun <R> map(f: (T) -> R): RDD<R> {
         return MappedRDD(this, f)
