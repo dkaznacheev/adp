@@ -1,3 +1,7 @@
+package rdd
+
+import Master
+import utils.SerUtils
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.reduce
 
@@ -36,11 +40,16 @@ abstract class ParallelOperation<T, R> (val rdd: RDD<T>) {
 
 class SaveAsObjectOperation<T>(rdd: RDD<T>, val name: String): ParallelOperation<T, Byte>(rdd) {
     override fun serialize(): ByteArray {
-        return SerUtils.serialize(SaveAsObjectOperationImpl(rdd.toImpl(), name))
+        return SerUtils.serialize(
+            SaveAsObjectOperationImpl(
+                rdd.toImpl(),
+                name
+            )
+        )
     }
 
     override suspend fun consumeParts(channel: ReceiveChannel<Byte>): Byte {
-        return channel.reduce {_, _ -> SUCCESS}
+        return channel.reduce {_, _ -> SUCCESS }
     }
 }
 
