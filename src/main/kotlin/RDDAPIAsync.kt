@@ -12,7 +12,7 @@ abstract class RDDAsync<T>(val master: Master) {
     }
 
     fun saveAsObject(name: String) {
-        return master.executeAsync(SaveAsObjectOperationlAsync(this, name))
+        master.executeAsync(SaveAsObjectOperationlAsync(this, name))
     }
 
     abstract fun toImpl(): RDDImplAsync<T>
@@ -36,12 +36,14 @@ abstract class ParallelOperationAsync<T, R> (val rdd: RDDAsync<T>) {
     abstract suspend fun consumeParts(channel: ReceiveChannel<R>): R
 }
 
-class SaveAsObjectOperationlAsync<T>(rdd: RDDAsync<T>, val name: String): ParallelOperationAsync<T, Unit>(rdd) {
+class SaveAsObjectOperationlAsync<T>(rdd: RDDAsync<T>, val name: String): ParallelOperationAsync<T, Byte>(rdd) {
     override fun serialize(): ByteArray {
         return SerUtils.serialize(SaveAsObjectOperationImplAsync(rdd.toImpl(), name))
     }
 
-    override suspend fun consumeParts(channel: ReceiveChannel<Unit>) {}
+    override suspend fun consumeParts(channel: ReceiveChannel<Byte>): Byte {
+        return channel.reduce {_, _ -> SUCCESS}
+    }
 }
 
 class ReduceOperationAsync<T>(rdd: RDDAsync<T>, val f: (T, T) -> T, val clazz: Class<T>): ParallelOperationAsync<T, T>(rdd) {

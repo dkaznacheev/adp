@@ -6,6 +6,7 @@ import java.io.File
 import java.io.Serializable
 
 const val MAX_CAP = 1000
+const val SUCCESS: Byte = 1
 
 abstract class RDDImplAsync<T> : Serializable {
     abstract fun channel(scope: CoroutineScope): ReceiveChannel<T>
@@ -58,16 +59,17 @@ class ReduceOperationImplAsync<T>(rdd: RDDImplAsync<T>, val f: (T, T) -> T): Par
     }
 }
 
-class SaveAsObjectOperationImplAsync<T>(rdd: RDDImplAsync<T>, val name: String): ParallelOperationImplAsync<T, Unit>(rdd) {
+class SaveAsObjectOperationImplAsync<T>(rdd: RDDImplAsync<T>, val name: String): ParallelOperationImplAsync<T, Byte>(rdd) {
     @KtorExperimentalAPI
-    override suspend fun execute(scope: CoroutineScope) {
+    override suspend fun execute(scope: CoroutineScope): Byte {
         val recChannel = rdd.channel(scope)
         val outChannel = File(name).writeChannel()
-        scope.launch(Dispatchers.IO) {
+        return withContext(Dispatchers.IO) {
             recChannel.consumeEach {
                 val ba = SerUtils.serialize(it)
                 outChannel.writeFully(ba, 0, ba.size)
             }
+            SUCCESS
         }
     }
 }
