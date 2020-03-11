@@ -1,10 +1,17 @@
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.reduce
+
 abstract class RDD<T>(val master: Master) {
-    fun <R> map(f: (T) -> R): RDD<R> {
+    fun <R> map(f: suspend (T) -> R): RDD<R> {
         return MappedRDD(this, f)
     }
 
-    fun reduce(clazz: Class<T>, f: (T, T) -> T): T? {
-        return master.execute(ReduceOperation(this, f, clazz))
+    fun reduce(f: (T, T) -> T): T? {
+        return master.execute(ReduceOperation(this, f))
+    }
+
+    fun saveAsObject(name: String) {
+        master.execute(SaveAsObjectOperation(this, name))
     }
 
     abstract fun toImpl(): RDDImpl<T>
@@ -16,18 +23,40 @@ class SourceRDD(master: Master, val filename: String) : RDD<String>(master) {
     }
 }
 
-class MappedRDD<T, R>(val parent: RDD<T>, val f: (T) -> R): RDD<R>(parent.master) {
+class MappedRDD<T, R>(val parent: RDD<T>, val f: suspend (T) -> R): RDD<R>(parent.master) {
     override fun toImpl(): RDDImpl<R> {
         return MappedRDDImpl(parent.toImpl(), f)
     }
 }
 
-abstract class ParallelOperation<T, U>(val rdd: RDD<T>) {
-    //abstract fun execute(): U
+abstract class ParallelOperation<T, R> (val rdd: RDD<T>) {
+    abstract fun serialize(): ByteArray
+    abstract suspend fun consumeParts(channel: ReceiveChannel<R>): R
 }
 
-class ReduceOperation<T>(rdd: RDD<T>, val f: (T, T) -> T, val clazz: Class<T>): ParallelOperation<T, T>(rdd) {
-    fun serialize(): ByteArray {
+class SaveAsObjectOperation<T>(rdd: RDD<T>, val name: String): ParallelOperation<T, Byte>(rdd) {
+    override fun serialize(): ByteArray {
+        return SerUtils.serialize(SaveAsObjectOperationImpl(rdd.toImpl(), name))
+    }
+
+    override suspend fun consumeParts(channel: ReceiveChannel<Byte>): Byte {
+        return channel.reduce {_, _ -> SUCCESS}
+    }
+}
+
+class ReduceOperation<T>(rdd: RDD<T>, val f: (T, T) -> T): ParallelOperation<T, T>(rdd) {
+    override fun serialize(): ByteArray {
         return SerUtils.serialize(ReduceOperationImpl(rdd.toImpl(), f))
     }
+
+    override suspend fun consumeParts(channel: ReceiveChannel<T>): T {
+        return channel.reduce(f)
+    }
+}
+
+class ReduceByKeyOperation<K, T>(val parent: RDD<Pair<K, T>>, val f: (T, T) -> T): RDD<Pair<K, T>>(parent.master) {
+    override fun toImpl(): RDDImpl<Pair<K, T>> {
+        return ReduceByKeyOperationImpl(parent.toImpl(), f)
+    }
+
 }

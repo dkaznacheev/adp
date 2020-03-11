@@ -16,15 +16,9 @@ fun sertest() {
     }
 }
 
-fun rddtest() {
-    val master = Master()
-    val res = SourceRDD(master, "lines.txt").map { it }.reduce(String::class.java) { a, b -> a + b }
-    println(res)
-}
-
 fun rddTestAsync() {
     val master = Master()
-    val res = SourceRDDAsync(master, "lines.txt").map {
+    val res = SourceRDD(master, "lines.txt").map {
         HttpClient().get<String>(it)
     }.map {
         it[14].toString()
@@ -36,7 +30,7 @@ fun rddTestAsync() {
 
 fun rddTestAsync2() {
     val master = Master()
-    SourceRDDAsync(master, "lines.txt").map {
+    SourceRDD(master, "lines.txt").map {
         HttpClient().get<String>(it)
     }.map{
         it[14]

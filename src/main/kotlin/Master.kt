@@ -23,18 +23,6 @@ class Master {
         }
     }
 
-    fun <T> execute(operation: ReduceOperation<T>): T? {
-        val serialized = operation.serialize()
-        return workers
-            .map {
-                runBlocking { runOnWorker(it, serialized) }
-            }
-            .map {
-                println("trying to deser")
-                deserializeResult(it) as T
-            }.reduce(operation.f)
-    }
-
     private fun deserializeResult(byteArray: ByteArray): Any {
         val bis = ObjectInputStream(ByteArrayInputStream(byteArray))
         return bis.readObject()
@@ -50,7 +38,7 @@ class Master {
         return SerUtils.base64decode(res)
     }
 
-    fun <T, R> executeAsync(op: ParallelOperationAsync<T, R>): R {
+    fun <T, R> execute(op: ParallelOperation<T, R>): R {
         val serialized = op.serialize()
         return runBlocking {
             val channel = Channel<R>(MAX_CAP)
