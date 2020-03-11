@@ -26,8 +26,10 @@ fun rddTestAsync() {
     val master = Master()
     val res = SourceRDDAsync(master, "lines.txt").map {
         HttpClient().get<String>(it)
-    }.reduce(String::class.java) { a, b ->
-        a + "\n\n" + b
+    }.map {
+        it[14].toString()
+    }.reduce { a, b ->
+        a + b
     }
     println(res)
 }
@@ -36,6 +38,8 @@ fun rddTestAsync2() {
     val master = Master()
     SourceRDDAsync(master, "lines.txt").map {
         HttpClient().get<String>(it)
+    }.map{
+        it[14]
     }.saveAsObject("result")
 }
 
@@ -43,6 +47,6 @@ fun main(args: Array<String>) {
     if (args.isNotEmpty() && args[0] == "worker") {
         Worker(args[1].toInt()).start()
     } else {
-        rddTestAsync2()
+        rddTestAsync()
     }
 }

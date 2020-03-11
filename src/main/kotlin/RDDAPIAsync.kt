@@ -1,4 +1,3 @@
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.reduce
 
@@ -7,8 +6,8 @@ abstract class RDDAsync<T>(val master: Master) {
         return MappedRDDAsync(this, f)
     }
 
-    fun reduce(clazz: Class<T>, f: (T, T) -> T): T? {
-        return master.executeAsync(ReduceOperationAsync(this, f, clazz))
+    fun reduce(f: (T, T) -> T): T? {
+        return master.executeAsync(ReduceOperationAsync(this, f))
     }
 
     fun saveAsObject(name: String) {
@@ -19,7 +18,6 @@ abstract class RDDAsync<T>(val master: Master) {
 }
 
 class SourceRDDAsync(master: Master, val filename: String) : RDDAsync<String>(master) {
-    @ExperimentalCoroutinesApi
     override fun toImpl(): RDDImplAsync<String> {
         return SourceRDDImplAsync(filename)
     }
@@ -46,7 +44,7 @@ class SaveAsObjectOperationlAsync<T>(rdd: RDDAsync<T>, val name: String): Parall
     }
 }
 
-class ReduceOperationAsync<T>(rdd: RDDAsync<T>, val f: (T, T) -> T, val clazz: Class<T>): ParallelOperationAsync<T, T>(rdd) {
+class ReduceOperationAsync<T>(rdd: RDDAsync<T>, val f: (T, T) -> T): ParallelOperationAsync<T, T>(rdd) {
     override fun serialize(): ByteArray {
         return SerUtils.serialize(ReduceOperationImplAsync(rdd.toImpl(), f))
     }
