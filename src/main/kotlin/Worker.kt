@@ -25,7 +25,7 @@ class Worker(port: Int) {
                 val rop = ropAny as ReduceOperationImpl<*>
                 rop.executeSerializable()
             } else {
-                val rop = ropAny as ReduceOperationImplAsync<*>
+                val rop = ropAny as ParallelOperationImplAsync<*, *>
                 coroutineScope {
                     rop.executeSerializable(this)
                 }

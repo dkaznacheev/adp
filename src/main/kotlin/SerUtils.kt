@@ -5,7 +5,7 @@ import java.io.ObjectOutputStream
 import java.util.*
 
 object SerUtils {
-    fun serialize(o: Any): ByteArray {
+    fun serialize(o: Any?): ByteArray {
         val bos = ByteArrayOutputStream()
         val oos = ObjectOutputStream(bos)
         oos.writeObject(o)
