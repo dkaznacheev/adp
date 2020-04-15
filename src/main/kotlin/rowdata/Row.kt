@@ -40,7 +40,7 @@ class MetaData(val schema: List<ColumnDesc>, val separator: String = ",") {
             val names = if (hasHeader) {
                 tokens
             } else {
-                (tokens.indices).map { "line$it" }.toList()
+                (tokens.indices).map { "col$it" }.toList()
             }
             return MetaData(
                 names.zip(actualTypes).map { (name, type) -> ColumnDesc(name, type) },

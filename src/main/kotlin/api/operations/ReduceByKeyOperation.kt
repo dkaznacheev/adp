@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
 
 class ReduceByKeyOperation<K, T>(val parent: RDD<Pair<K, T>>, val f: (T, T) -> T): RDD<Pair<K, T>>(parent.master) {
     override fun toImpl(): RDDImpl<Pair<K, T>> {
@@ -19,8 +20,19 @@ class ReduceByKeyOperationImpl<K, T>(val parent: RDDImpl<Pair<K, T>>, val f: (T,
         val channel = Channel<Pair<K, T>>(MAX_CAP)
         val recChannel = parent.channel(scope)
 
+        val table = ConcurrentHashMap<K, T>()
         scope.launch {
-            // TODO
+            for ((k, v) in recChannel) {
+                if (!table.containsKey(k)) {
+                    table[k] = v
+                } else {
+                    table[k] = f(table[k]!!, v)
+                }
+            }
+            for (element in table.entries) {
+                channel.send(element.key to element.value)
+            }
+            channel.close()
         }
         return channel
     }
