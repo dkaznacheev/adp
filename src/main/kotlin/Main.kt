@@ -2,9 +2,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import rdd.CsvRDD
-import rdd.SourceRDD
-import rowdata.ColumnDataType
+import api.rdd.CsvRDD
+import api.rdd.StringRDD
 import utils.SerUtils
 
 fun sertest() {
@@ -22,7 +21,7 @@ fun sertest() {
 
 fun rddTestAsync() {
     val master = MultiWorkerMaster()
-    val res = SourceRDD(master, "lines.txt").map {
+    val res = StringRDD(master, "lines.txt").map {
         HttpClient().get<String>(it)
     }.map {
         it[14].toString()
@@ -34,7 +33,7 @@ fun rddTestAsync() {
 
 fun rddTestAsync2() {
     val master = MultiWorkerMaster()
-    SourceRDD(master, "lines.txt").map {
+    StringRDD(master, "lines.txt").map {
         HttpClient().get<String>(it)
     }.map{
         it[14]
@@ -43,7 +42,7 @@ fun rddTestAsync2() {
 
 fun rddTestLocal() {
     val master = LocalMaster()
-    SourceRDD(master, "workers/worker1/lines.txt").map {
+    StringRDD(master, "workers/worker1/lines.txt").map {
         HttpClient().get<String>(it)
     }.map{
         it[14].toString()
@@ -52,9 +51,11 @@ fun rddTestLocal() {
 
 fun rddTestLocalCsv() {
     val master = LocalMaster()
-    CsvRDD(master,
+    CsvRDD(
+        master,
         "tmp.csv",
-        false)
+        false
+    )
         .map {
             it.getString("line0")!! + it.getString("line1")!!
         }.reduce { a, b -> a + b }.also(::println)

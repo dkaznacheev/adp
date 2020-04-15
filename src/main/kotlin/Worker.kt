@@ -1,3 +1,4 @@
+import api.operations.ParallelOperationImpl
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
@@ -9,7 +10,6 @@ import io.ktor.routing.routing
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import kotlinx.coroutines.coroutineScope
-import rdd.ParallelOperationImpl
 import utils.SerUtils
 
 class Worker(port: Int) {
