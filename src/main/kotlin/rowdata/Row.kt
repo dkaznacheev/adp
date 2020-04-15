@@ -56,6 +56,10 @@ class Row(private val meta: MetaData, private val values: List<Any?>) {
         return values[i]
     }
 
+    operator fun get(i: Int): Any? {
+        return values[i]
+    }
+
     override fun toString(): String {
         return values.joinToString(meta.separator) { it.toString() }
     }

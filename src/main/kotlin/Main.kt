@@ -2,7 +2,9 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import rdd.CsvRDD
 import rdd.SourceRDD
+import rowdata.ColumnDataType
 import utils.SerUtils
 
 fun sertest() {
@@ -48,10 +50,20 @@ fun rddTestLocal() {
     }.reduce {a, b -> a + b}.also { println(it) }
 }
 
+fun rddTestLocalCsv() {
+    val master = LocalMaster()
+    CsvRDD(master,
+        "tmp.csv",
+        false)
+        .map {
+            it.getString("line0")!! + it.getString("line1")!!
+        }.reduce { a, b -> a + b }.also(::println)
+}
+
 fun main(args: Array<String>) {
     if (args.isNotEmpty() && args[0] == "worker") {
         Worker(args[1].toInt()).start()
     } else {
-        rddTestLocal()
+        rddTestLocalCsv()
     }
 }

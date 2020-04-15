@@ -33,7 +33,7 @@ class CsvRDD(master: Master,
              val filename: String,
              val hasHeader: Boolean,
              val separator: String = ",",
-             val types: List<ColumnDataType>?): RDD<Row>(master) {
+             val types: List<ColumnDataType>? = null): RDD<Row>(master) {
     override fun toImpl(): RDDImpl<Row> {
         return CsvRDDImpl(filename, hasHeader, separator, types)
     }

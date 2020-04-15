@@ -56,16 +56,16 @@ class CsvRDDImpl(val filename: String,
                  val separator: String,
                  val types: List<ColumnDataType>?): RDDImpl<Row>() {
     override fun channel(scope: CoroutineScope): ReceiveChannel<Row> {
-        val lines = File(filename).bufferedReader().lineSequence()
-        val firstLine = lines.first()
+        val linesReader = File(filename).bufferedReader()
+        val firstLine = linesReader.readLine()
         val metaData = MetaData.parseMeta(firstLine, hasHeader, separator, types)
-        val lineSeq = if (hasHeader) {
-            lines
+        val lines = if (hasHeader) {
+            linesReader.lineSequence()
         } else {
-            sequenceOf(firstLine) + lines
+            sequenceOf(firstLine) + linesReader.lineSequence()
         }
         return scope.produce {
-            for (line in lineSeq) {
+            for (line in lines) {
                 send(metaData.parseRow(line))
             }
         }
