@@ -9,7 +9,19 @@ import utils.SerUtils
 import java.io.ByteArrayInputStream
 import java.io.ObjectInputStream
 
-class Master {
+interface Master {
+    fun <T, R> execute(op: ParallelOperation<T, R>): R
+}
+
+class LocalMaster: Master {
+    override fun <T, R> execute(op: ParallelOperation<T, R>): R {
+        return runBlocking {
+            op.toImpl().execute(this)
+        }
+    }
+}
+
+class MultiWorkerMaster: Master {
     private val workers = listOf(8080, 8081)
     private val client = HttpClient()
 
@@ -41,7 +53,7 @@ class Master {
         return SerUtils.base64decode(res)
     }
 
-    fun <T, R> execute(op: ParallelOperation<T, R>): R {
+    override fun <T, R> execute(op: ParallelOperation<T, R>): R {
         val serialized = op.serialize()
         return runBlocking {
             val channel = Channel<R>(MAX_CAP)
@@ -57,21 +69,4 @@ class Master {
             result.await()
         }
     }
-/*
-    fun <T> reduceAsync(op: ReduceOperationAsync<T>): T? {
-        val serialized = op.serialize()
-        return runBlocking {
-            workers
-                .map {
-                    async {
-                        val ba = runOnWorker(it, serialized, path = "/runAsync")
-                        deserializeResult(ba) as T
-                    }
-                }
-                .awaitAll()
-                .reduce(op.f)
-        }
-    }
-
- */
 }
