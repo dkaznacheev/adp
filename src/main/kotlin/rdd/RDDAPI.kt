@@ -4,6 +4,8 @@ import Master
 import utils.SerUtils
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.reduce
+import rowdata.ColumnDataType
+import rowdata.Row
 
 abstract class RDD<T>(val master: Master) {
     fun <R> map(f: suspend (T) -> R): RDD<R> {
@@ -27,6 +29,16 @@ class SourceRDD(master: Master, val filename: String) : RDD<String>(master) {
     }
 }
 
+class CsvRDD(master: Master,
+             val filename: String,
+             val hasHeader: Boolean,
+             val separator: String = ",",
+             val types: List<ColumnDataType>?): RDD<Row>(master) {
+    override fun toImpl(): RDDImpl<Row> {
+        return CsvRDDImpl(filename, hasHeader, separator, types)
+    }
+}
+
 class MappedRDD<T, R>(val parent: RDD<T>, val f: suspend (T) -> R): RDD<R>(parent.master) {
     override fun toImpl(): RDDImpl<R> {
         return MappedRDDImpl(parent.toImpl(), f)
@@ -39,6 +51,19 @@ abstract class ParallelOperation<T, R> (val rdd: RDD<T>) {
 
     open fun serialize(): ByteArray {
         return SerUtils.serialize(toImpl())
+    }
+}
+
+class SaveAsCsvOperation<T>(rdd: RDD<T>, val name: String): ParallelOperation<T, Byte>(rdd) {
+    override suspend fun consumeParts(channel: ReceiveChannel<Byte>): Byte {
+        return channel.reduce {_, _ -> SUCCESS }
+    }
+
+    override fun toImpl(): ParallelOperationImpl<T, Byte> {
+        return SaveAsCsvOperationImpl(
+            rdd.toImpl(),
+            name
+        )
     }
 }
 

@@ -6,6 +6,9 @@ import io.ktor.util.cio.writeChannel
 import io.ktor.utils.io.writeStringUtf8
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
+import rowdata.ColumnDataType
+import rowdata.MetaData
+import rowdata.Row
 import java.io.File
 import java.io.Serializable
 
@@ -48,6 +51,28 @@ class SourceRDDImpl(val filename: String): RDDImpl<String>() {
     }
 }
 
+class CsvRDDImpl(val filename: String,
+                 val hasHeader: Boolean,
+                 val separator: String,
+                 val types: List<ColumnDataType>?): RDDImpl<Row>() {
+    override fun channel(scope: CoroutineScope): ReceiveChannel<Row> {
+        val lines = File(filename).bufferedReader().lineSequence()
+        val firstLine = lines.first()
+        val metaData = MetaData.parseMeta(firstLine, hasHeader, separator, types)
+        val lineSeq = if (hasHeader) {
+            lines
+        } else {
+            sequenceOf(firstLine) + lines
+        }
+        return scope.produce {
+            for (line in lineSeq) {
+                send(metaData.parseRow(line))
+            }
+        }
+    }
+
+}
+
 abstract class ParallelOperationImpl<T, R>(val rdd: RDDImpl<T>): Serializable {
     abstract suspend fun execute(scope: CoroutineScope) : R
 
@@ -60,6 +85,20 @@ abstract class ParallelOperationImpl<T, R>(val rdd: RDDImpl<T>): Serializable {
 class ReduceOperationImpl<T>(rdd: RDDImpl<T>, val f: (T, T) -> T): ParallelOperationImpl<T, T>(rdd) {
     override suspend fun execute(scope: CoroutineScope): T {
         return rdd.channel(scope).reduce(f)
+    }
+}
+
+class SaveAsCsvOperationImpl<T>(rdd: RDDImpl<T>, val name: String): ParallelOperationImpl<T, Byte>(rdd) {
+    @KtorExperimentalAPI
+    override suspend fun execute(scope: CoroutineScope): Byte {
+        val recChannel = rdd.channel(scope)
+        val outChannel = File(name).writeChannel()
+        return withContext(Dispatchers.IO) {
+            recChannel.consumeEach {
+                outChannel.writeStringUtf8(it.toString())
+            }
+            SUCCESS
+        }
     }
 }
 
