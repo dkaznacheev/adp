@@ -22,7 +22,7 @@ fun sertest() {
 }
 
 fun rddTestAsync() {
-    val master = MultiWorkerMaster()
+    val master = MultiWorkerMaster(listOf(8080, 8081))
     val res = StringRDD(master, "lines.txt").map {
         HttpClient().get<String>(it)
     }.map {
@@ -34,7 +34,7 @@ fun rddTestAsync() {
 }
 
 fun rddTestAsync2() {
-    val master = MultiWorkerMaster()
+    val master = MultiWorkerMaster(listOf(8080, 8081))
     StringRDD(master, "lines.txt").map {
         HttpClient().get<String>(it)
     }.map{
@@ -90,10 +90,26 @@ fun filterLocal() {
     }.show()
 }
 
+
+fun reduceByKeyMultiNodeTest() {
+    val master = MultiWorkerMaster(listOf(8080, 8081))
+    CsvRDD(
+        master,
+        "tmp.csv",
+        true,
+        types = listOf(ColumnDataType.STRING, ColumnDataType.INT)
+    ).map {
+        it.getString("col0")!! to it.getInt("col1")!!
+    }.reduceByKey { a, b -> a + b}
+        .map { it.toString() }
+        .reduce { a, b -> a + b }
+        .also { println(it) }
+}
+
 fun main(args: Array<String>) {
     if (args.isNotEmpty() && args[0] == "worker") {
         Worker(args[1].toInt()).start()
     } else {
-        filterLocal()
+        reduceByKeyMultiNodeTest()
     }
 }

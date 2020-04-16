@@ -38,7 +38,7 @@ class ShuffleManager(val thisWorker: Int, val workers: List<Int>) {
         val httpClient = HttpClient()
         workers.mapIndexed { i, port ->
             scope.async {
-                val response = httpClient.get<HttpResponse>("localhost:$port/getBlock?num=$thisWorker")
+                val response = httpClient.get<HttpResponse>("http://localhost:$port/getBlock?num=$thisWorker")
                 response.content.copyAndClose(inFiles[i].writeChannel())
             }
         }.awaitAll()
@@ -58,6 +58,7 @@ class ShuffleManager(val thisWorker: Int, val workers: List<Int>) {
 
     suspend fun <T, R> createBlocks(channel: ReceiveChannel<Pair<T, R>>) {
         withContext(Dispatchers.IO) {
+            println("saving parts")
             val outStreams = outFiles.map { it.outputStream() }
             val writers = outStreams.map { it.bufferedWriter() }
 
@@ -65,6 +66,7 @@ class ShuffleManager(val thisWorker: Int, val workers: List<Int>) {
                 val i = Math.floorMod(k.hashCode(), workers.size)
                 writers[i].write(SerUtils.base64encode(SerUtils.serialize(v)))
             }
+            println()
             for (outStream in outStreams) {
                 outStream.close()
             }

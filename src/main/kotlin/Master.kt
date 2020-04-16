@@ -21,8 +21,7 @@ class LocalMaster: Master {
     }
 }
 
-class MultiWorkerMaster: Master {
-    private val workers = listOf(8080, 8081)
+class MultiWorkerMaster(private val workers: List<Int>): Master {
     private val client = HttpClient()
 
     fun test() {
