@@ -1,5 +1,6 @@
 package api.operations
 
+import WorkerContext
 import api.rdd.RDD
 import api.rdd.RDDImpl
 import kotlinx.coroutines.CoroutineScope
@@ -17,10 +18,10 @@ abstract class ParallelOperation<T, R> (val rdd: RDD<T>) {
 }
 
 abstract class ParallelOperationImpl<T, R>(val rdd: RDDImpl<T>): Serializable {
-    abstract suspend fun execute(scope: CoroutineScope) : R
+    abstract suspend fun execute(scope: CoroutineScope, ctx: WorkerContext) : R
 
-    open suspend fun executeSerializable(scope: CoroutineScope): ByteArray {
-        val result = execute(scope) as Serializable
+    open suspend fun executeSerializable(scope: CoroutineScope, ctx: WorkerContext): ByteArray {
+        val result = execute(scope, ctx) as Serializable
         return SerUtils.serialize(result)
     }
 }

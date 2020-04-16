@@ -1,0 +1,1 @@
+data class WorkerContext(val thisWorker: Int, val workers: List<Int>)

@@ -13,6 +13,8 @@ import kotlinx.coroutines.coroutineScope
 import utils.SerUtils
 
 class Worker(port: Int) {
+    val ctx = WorkerContext(port, listOf(8080, 8081))
+
     private suspend fun processRunCall(call: ApplicationCall) {
         try {
             val body = call.receive<String>()
@@ -22,7 +24,7 @@ class Worker(port: Int) {
 
             val rop = ropAny as ParallelOperationImpl<*, *>
             val result = coroutineScope {
-                rop.executeSerializable(this)
+                rop.executeSerializable(this, ctx)
             }
 
             call.respondText(SerUtils.base64encode(result))

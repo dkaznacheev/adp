@@ -1,6 +1,7 @@
 package api.rdd
 
 import Master
+import WorkerContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -15,7 +16,7 @@ class StringRDD(master: Master, val filename: String) : RDD<String>(master) {
 
 @ExperimentalCoroutinesApi
 class StringRDDImpl(val filename: String): RDDImpl<String>() {
-    override fun channel(scope: CoroutineScope): ReceiveChannel<String> {
+    override fun channel(scope: CoroutineScope, ctx: WorkerContext): ReceiveChannel<String> {
         val lines = File(filename).bufferedReader().lineSequence()
         return scope.produce {
             for (line in lines) {

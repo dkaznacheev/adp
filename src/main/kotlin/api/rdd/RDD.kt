@@ -1,7 +1,7 @@
 package api.rdd
 
 import Master
-import api.operations.ReduceByKeyOperation
+import WorkerContext
 import api.operations.ReduceOperation
 import api.operations.SaveAsCsvOperation
 import api.operations.SaveAsObjectOperation
@@ -10,7 +10,7 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import java.io.Serializable
 
 fun <K, V> RDD<Pair<K, V>>.reduceByKey(f: (V, V) -> V): RDD<Pair<K, V>> {
-    return ReduceByKeyOperation(this, f)
+    return ReduceByKeyRDD(this, f)
 }
 
 abstract class RDD<T>(val master: Master) {
@@ -42,5 +42,5 @@ abstract class RDD<T>(val master: Master) {
 }
 
 abstract class RDDImpl<T> : Serializable {
-    abstract fun channel(scope: CoroutineScope): ReceiveChannel<T>
+    abstract fun channel(scope: CoroutineScope, ctx: WorkerContext): ReceiveChannel<T>
 }

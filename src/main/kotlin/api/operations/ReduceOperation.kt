@@ -1,5 +1,6 @@
 package api.operations
 
+import WorkerContext
 import api.rdd.RDD
 import api.rdd.RDDImpl
 import kotlinx.coroutines.CoroutineScope
@@ -17,7 +18,7 @@ class ReduceOperation<T>(rdd: RDD<T>, val f: (T, T) -> T): ParallelOperation<T, 
 }
 
 class ReduceOperationImpl<T>(rdd: RDDImpl<T>, val f: (T, T) -> T): ParallelOperationImpl<T, T>(rdd) {
-    override suspend fun execute(scope: CoroutineScope): T {
-        return rdd.channel(scope).reduce(f)
+    override suspend fun execute(scope: CoroutineScope, ctx: WorkerContext): T {
+        return rdd.channel(scope,).reduce(f)
     }
 }

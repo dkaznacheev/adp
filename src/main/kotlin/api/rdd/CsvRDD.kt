@@ -1,6 +1,7 @@
 package api.rdd
 
 import Master
+import WorkerContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
@@ -23,7 +24,7 @@ class CsvRDDImpl(val filename: String,
                  val hasHeader: Boolean,
                  val separator: String,
                  val types: List<ColumnDataType>?): RDDImpl<Row>() {
-    override fun channel(scope: CoroutineScope): ReceiveChannel<Row> {
+    override fun channel(scope: CoroutineScope, ctx: WorkerContext): ReceiveChannel<Row> {
         val linesReader = File(filename).bufferedReader()
         val firstLine = linesReader.readLine()
         val metaData = MetaData.parseMeta(firstLine, hasHeader, separator, types)

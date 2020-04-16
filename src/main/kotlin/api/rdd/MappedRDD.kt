@@ -1,5 +1,6 @@
 package api.rdd
 
+import WorkerContext
 import api.MAX_CAP
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -13,9 +14,9 @@ class MappedRDD<T, R>(val parent: RDD<T>, val f: suspend (T) -> R): RDD<R>(paren
 
 class MappedRDDImpl<T, R>(val parent: RDDImpl<T>, val f: suspend (T) -> R): RDDImpl<R>() {
     @ExperimentalCoroutinesApi
-    override fun channel(scope: CoroutineScope): ReceiveChannel<R> {
+    override fun channel(scope: CoroutineScope, ctx: WorkerContext): ReceiveChannel<R> {
         val channel = Channel<R>(MAX_CAP)
-        val recChannel = parent.channel(scope)
+        val recChannel = parent.channel(scope, ctx)
         scope.launch {
             val defs = mutableListOf<Deferred<*>>()
             while(!recChannel.isClosedForReceive) {
