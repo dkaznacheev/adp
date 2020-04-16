@@ -31,7 +31,7 @@ class SaveAsObjectOperation<T>(rdd: RDD<T>, val name: String): ParallelOperation
 class SaveAsObjectOperationImpl<T>(rdd: RDDImpl<T>, val name: String): ParallelOperationImpl<T, Byte>(rdd) {
     @KtorExperimentalAPI
     override suspend fun execute(scope: CoroutineScope, ctx: WorkerContext): Byte {
-        val recChannel = rdd.channel(scope,)
+        val recChannel = rdd.channel(scope, ctx)
         val outChannel = File(name).writeChannel()
         return withContext(Dispatchers.IO) {
             recChannel.consumeEach {

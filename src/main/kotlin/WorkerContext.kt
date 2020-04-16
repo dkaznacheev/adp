@@ -1,1 +1,1 @@
-data class WorkerContext(val thisWorker: Int, val workers: List<Int>)
+class WorkerContext(val thisWorker: Int, val workers: List<Int>, val shuffleManager: ShuffleManager)

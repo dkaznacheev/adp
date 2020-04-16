@@ -3,6 +3,7 @@ import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.receive
+import io.ktor.response.respondFile
 import io.ktor.response.respondText
 import io.ktor.routing.get
 import io.ktor.routing.post
@@ -13,7 +14,8 @@ import kotlinx.coroutines.coroutineScope
 import utils.SerUtils
 
 class Worker(port: Int) {
-    val ctx = WorkerContext(port, listOf(8080, 8081))
+    private val shuffleManager = ShuffleManager(port, listOf(8080, 8081))
+    val ctx = WorkerContext(port, listOf(8080, 8081), shuffleManager)
 
     private suspend fun processRunCall(call: ApplicationCall) {
         try {
@@ -42,6 +44,11 @@ class Worker(port: Int) {
             post("/runAsync") {
                 println("received async call")
                 processRunCall(call)
+            }
+            get("/getBlock") {
+                shuffleManager.waitForOpen()
+                val blockNum = call.parameters["num"]!!.toInt()
+                call.respondFile(shuffleManager.blockOf(blockNum))
             }
         }
     }

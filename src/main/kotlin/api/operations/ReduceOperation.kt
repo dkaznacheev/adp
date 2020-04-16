@@ -19,6 +19,6 @@ class ReduceOperation<T>(rdd: RDD<T>, val f: (T, T) -> T): ParallelOperation<T, 
 
 class ReduceOperationImpl<T>(rdd: RDDImpl<T>, val f: (T, T) -> T): ParallelOperationImpl<T, T>(rdd) {
     override suspend fun execute(scope: CoroutineScope, ctx: WorkerContext): T {
-        return rdd.channel(scope,).reduce(f)
+        return rdd.channel(scope, ctx).reduce(f)
     }
 }
