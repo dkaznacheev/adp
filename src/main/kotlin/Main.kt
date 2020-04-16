@@ -78,10 +78,24 @@ fun reduceByKeyLocalTest() {
         .also { println(it) }
 }
 
+fun filterLocal() {
+    val master = LocalMaster()
+    CsvRDD(
+        master,
+        "tmp.csv",
+        true,
+        types = listOf(ColumnDataType.STRING, ColumnDataType.INT)
+    ).filter {
+        it.getInt("col1")!! % 2 == 0
+    }.map {
+        it.getInt("col1")!!.toString()
+    }.reduce { a, b -> a + "\n" + b }.also { println(it) }
+}
+
 fun main(args: Array<String>) {
     if (args.isNotEmpty() && args[0] == "worker") {
         Worker(args[1].toInt()).start()
     } else {
-        reduceByKeyLocalTest()
+        filterLocal()
     }
 }

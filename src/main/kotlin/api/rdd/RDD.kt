@@ -18,6 +18,10 @@ abstract class RDD<T>(val master: Master) {
         return MappedRDD(this, f)
     }
 
+    fun filter(f: suspend (T) -> Boolean): RDD<T> {
+        return FilteredRDD(this, f)
+    }
+
     fun reduce(f: (T, T) -> T): T? {
         return master.execute(ReduceOperation(this, f))
     }
