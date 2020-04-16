@@ -87,9 +87,7 @@ fun filterLocal() {
         types = listOf(ColumnDataType.STRING, ColumnDataType.INT)
     ).filter {
         it.getInt("col1")!! % 2 == 0
-    }.map {
-        it.getInt("col1")!!.toString()
-    }.reduce { a, b -> a + "\n" + b }.also { println(it) }
+    }.show()
 }
 
 fun main(args: Array<String>) {

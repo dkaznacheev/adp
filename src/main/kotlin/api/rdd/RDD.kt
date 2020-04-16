@@ -34,6 +34,10 @@ abstract class RDD<T>(val master: Master) {
         master.execute(SaveAsCsvOperation(this, name))
     }
 
+    fun show() {
+        println(map { it.toString() }.reduce { a, b -> a + "\n" + b})
+    }
+
     abstract fun toImpl(): RDDImpl<T>
 }
 
