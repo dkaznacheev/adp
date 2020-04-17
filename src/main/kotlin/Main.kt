@@ -1,3 +1,4 @@
+import api.rdd.CachedRDD
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import kotlinx.coroutines.GlobalScope
@@ -122,10 +123,23 @@ fun reduceByKeyMultiNodeTest() {
         .show()
 }
 
+fun cacheMultiNodeTest() {
+    val master = MultiWorkerMaster(listOf(8080, 8081))
+    val id = CsvRDD(
+        master,
+        "tmp.csv",
+        true,
+        types = listOf(ColumnDataType.STRING, ColumnDataType.INT)
+    ).map {
+        it.getInt("col1")!!
+    }.cache()
+    CachedRDD<Int>(master, id).reduce {a, b -> a + b}.also { println(it) }
+}
+
 fun main(args: Array<String>) {
     if (args.isNotEmpty() && args[0] == "worker") {
         Worker(args[1].toInt()).start()
     } else {
-        reduceByKeyMultiNodeTest()
+        cacheMultiNodeTest()
     }
 }

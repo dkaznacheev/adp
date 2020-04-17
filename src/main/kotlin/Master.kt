@@ -16,7 +16,13 @@ interface Master {
 class LocalMaster: Master {
     override fun <T, R> execute(op: ParallelOperation<T, R>): R {
         return runBlocking {
-            op.toImpl().execute(this, WorkerContext(0, listOf(), ShuffleManager(0, listOf())))
+            op.toImpl().execute(
+                this,
+                WorkerContext(
+                    0,
+                    listOf(),
+                    ShuffleManager(0, listOf()),
+                    CacheManager(100)))
         }
     }
 }

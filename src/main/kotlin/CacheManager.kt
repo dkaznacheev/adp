@@ -40,16 +40,19 @@ class CacheManager(val capacity: Int) {
         }
     }
 
-    suspend fun <T> load(id: Int, scope: CoroutineScope): ReceiveChannel<T> {
+    fun <T> load(id: Int, scope: CoroutineScope): ReceiveChannel<T> {
         return scope.produce {
             val cached = cache[id] ?: mutableListOf<Any?>()
             for (o in cached) {
                 send(o as T)
             }
-            val istream = cacheDir.resolve("cache$id").inputStream()
-            val lines = istream.bufferedReader().lineSequence()
-            for (line in lines) {
-                send(SerUtils.deserialize(SerUtils.base64decode(line)) as T)
+            val f = cacheDir.resolve("cache$id")
+            if (f.exists()) {
+                val istream = f.inputStream()
+                val lines = istream.bufferedReader().lineSequence()
+                for (line in lines) {
+                    send(SerUtils.deserialize(SerUtils.base64decode(line)) as T)
+                }
             }
         }
     }
