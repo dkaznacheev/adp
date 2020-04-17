@@ -3,6 +3,7 @@ import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.receive
+import io.ktor.response.respond
 import io.ktor.response.respondFile
 import io.ktor.response.respondText
 import io.ktor.routing.get
@@ -12,6 +13,7 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import kotlinx.coroutines.coroutineScope
 import utils.SerUtils
+import java.io.File
 
 class Worker(port: Int) {
     private val shuffleManager = ShuffleManager(port, listOf(8080, 8081))
@@ -46,9 +48,18 @@ class Worker(port: Int) {
                 processRunCall(call)
             }
             get("/getBlock") {
-                shuffleManager.waitForOpen()
-                val blockNum = call.parameters["num"]!!.toInt()
-                call.respondFile(shuffleManager.blockOf(blockNum))
+                try {
+                    shuffleManager.waitForOpen()
+                    val blockNum = call.parameters["num"]!!.toInt()
+                    val f = shuffleManager.blockOf(blockNum)
+                    call.respondFile(f)
+                } catch (e: Exception) {
+                    println(e.stackTrace)
+                    call.respond(HttpStatusCode.InternalServerError)
+                }
+            }
+            get("/testBlock") {
+                call.respondFile(File("shuffle/out/worker8080"))
             }
         }
     }

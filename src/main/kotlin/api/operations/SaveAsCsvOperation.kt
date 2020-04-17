@@ -6,6 +6,7 @@ import api.rdd.RDD
 import api.rdd.RDDImpl
 import io.ktor.util.KtorExperimentalAPI
 import io.ktor.util.cio.writeChannel
+import io.ktor.utils.io.writeChar
 import io.ktor.utils.io.writeStringUtf8
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +37,7 @@ class SaveAsCsvOperationImpl<T>(rdd: RDDImpl<T>, val name: String): ParallelOper
         return withContext(Dispatchers.IO) {
             recChannel.consumeEach {
                 outChannel.writeStringUtf8(it.toString())
+                outChannel.writeStringUtf8("\n")
             }
             SUCCESS
         }

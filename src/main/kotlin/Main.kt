@@ -5,8 +5,15 @@ import kotlinx.coroutines.launch
 import api.rdd.CsvRDD
 import api.rdd.StringRDD
 import api.rdd.reduceByKey
+import io.ktor.client.statement.HttpResponse
+import io.ktor.util.cio.writeChannel
+import io.ktor.utils.io.copyAndClose
+import io.ktor.utils.io.jvm.javaio.copyTo
+import io.ktor.utils.io.readUTF8Line
+import kotlinx.coroutines.runBlocking
 import rowdata.ColumnDataType
 import utils.SerUtils
+import java.io.File
 
 fun sertest() {
     val f: suspend (Int) -> Int = {
@@ -59,8 +66,19 @@ fun rddTestLocalCsv() {
         false
     )
         .map {
-            it.getString("line0")!! + it.getString("line1")!!
+            it.getString("col0")!! + it.getString("col1")!!
         }.reduce { a, b -> a + b }.also(::println)
+}
+
+fun saveToCsvTest() {
+    val master = LocalMaster()
+    CsvRDD(
+        master,
+        "tmp.csv",
+        true
+    ).map {
+        it.getString("col0")!!
+    }.saveAsCSV("res.csv")
 }
 
 fun reduceByKeyLocalTest() {

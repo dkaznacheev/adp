@@ -1,10 +1,8 @@
 import api.MAX_CAP
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
-import io.ktor.client.request.request
 import io.ktor.client.statement.HttpResponse
-import io.ktor.util.cio.writeChannel
-import io.ktor.utils.io.copyAndClose
+import io.ktor.utils.io.jvm.javaio.copyTo
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -39,7 +37,9 @@ class ShuffleManager(val thisWorker: Int, val workers: List<Int>) {
         workers.mapIndexed { i, port ->
             scope.async {
                 val response = httpClient.get<HttpResponse>("http://localhost:$port/getBlock?num=$thisWorker")
-                response.content.copyAndClose(inFiles[i].writeChannel())
+                inFiles[i].outputStream().use {
+                    response.content.copyTo(it)
+                }
             }
         }.awaitAll()
         return scope.produce(capacity = MAX_CAP) {
@@ -53,7 +53,7 @@ class ShuffleManager(val thisWorker: Int, val workers: List<Int>) {
     }
 
     fun blockOf(i: Int): File {
-        return outFiles[i]
+        return outFiles.zip(workers).find { (_, worker) -> worker == i}!!.first
     }
 
     suspend fun <T, R> createBlocks(channel: ReceiveChannel<Pair<T, R>>) {
@@ -64,10 +64,14 @@ class ShuffleManager(val thisWorker: Int, val workers: List<Int>) {
 
             for ((k, v) in channel) {
                 val i = Math.floorMod(k.hashCode(), workers.size)
-                writers[i].write(SerUtils.base64encode(SerUtils.serialize(v)))
+                val s = SerUtils.base64encode(SerUtils.serialize(k to v))
+                println("saving $v to $i part: $s")
+                writers[i].write(s)
+                writers[i].write("\n")
             }
             println()
-            for (outStream in outStreams) {
+            for ((outStream, writer) in outStreams.zip(writers)) {
+                writer.flush()
                 outStream.close()
             }
         }
