@@ -20,6 +20,10 @@ abstract class RDD<T>(val master: Master) {
         return MappedRDD(this, f)
     }
 
+    fun <R> mapSync(f: suspend (T) -> R): RDD<R> {
+        return MappedSyncRDD(this, f)
+    }
+
     fun filter(f: suspend (T) -> Boolean): RDD<T> {
         return FilteredRDD(this, f)
     }
