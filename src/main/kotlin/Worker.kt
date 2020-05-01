@@ -17,7 +17,7 @@ import java.io.File
 
 class Worker(port: Int) {
     private val shuffleManager = ShuffleManager(port, listOf(8080, 8081))
-    private val cacheManager = CacheManager(1000)
+    private val cacheManager = CacheManager(100)
     val ctx = WorkerContext(port, listOf(8080, 8081), shuffleManager, cacheManager)
 
     private suspend fun processRunCall(call: ApplicationCall) {

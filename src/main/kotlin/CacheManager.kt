@@ -20,6 +20,7 @@ class CacheManager(val capacity: Int) {
         } else {
             cache[id] = mutableListOf(o)
         }
+        println("stored $o in memory")
         totalSize++
     }
 
@@ -30,6 +31,8 @@ class CacheManager(val capacity: Int) {
             writers[id] = os.bufferedWriter()
         }
         writers[id]!!.write(SerUtils.base64encode(SerUtils.serialize(o)))
+        writers[id]!!.newLine()
+        println("stored $o on disk")
     }
 
     fun store(id: Int, o: Any?) {
@@ -44,6 +47,7 @@ class CacheManager(val capacity: Int) {
         return scope.produce {
             val cached = cache[id] ?: mutableListOf<Any?>()
             for (o in cached) {
+                println("loading $o from memory")
                 send(o as T)
             }
             val f = cacheDir.resolve("cache$id")
@@ -51,7 +55,9 @@ class CacheManager(val capacity: Int) {
                 val istream = f.inputStream()
                 val lines = istream.bufferedReader().lineSequence()
                 for (line in lines) {
-                    send(SerUtils.deserialize(SerUtils.base64decode(line)) as T)
+                    val o = SerUtils.deserialize(SerUtils.base64decode(line))
+                    println("loading $o from disk")
+                    send(o as T)
                 }
             }
         }

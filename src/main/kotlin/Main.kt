@@ -136,6 +136,7 @@ fun cacheMultiNodeTest() {
     CachedRDD<Int>(master, id).reduce {a, b -> a + b}.also { println(it) }
 }
 
+
 fun main(args: Array<String>) {
     if (args.isNotEmpty() && args[0] == "worker") {
         Worker(args[1].toInt()).start()
