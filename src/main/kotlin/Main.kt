@@ -136,11 +136,25 @@ fun cacheMultiNodeTest() {
     CachedRDD<Int>(master, id).reduce {a, b -> a + b}.also { println(it) }
 }
 
+fun serviceTest() {
+    val master = MultiWorkerMaster(listOf(8080, 8081))
+    CsvRDD(
+        master,
+        "tmp.csv",
+        true,
+        types = listOf(ColumnDataType.STRING, ColumnDataType.INT)
+    ).map {
+        it.getInt("col1")!!
+    }.map {
+        HttpClient().get<String>("http://localhost:8085/echo?value=$it")
+    }.show()
+}
+
 
 fun main(args: Array<String>) {
     if (args.isNotEmpty() && args[0] == "worker") {
         Worker(args[1].toInt()).start()
     } else {
-        cacheMultiNodeTest()
+        serviceTest()
     }
 }
