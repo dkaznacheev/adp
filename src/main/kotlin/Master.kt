@@ -24,14 +24,15 @@ class LocalMaster: Master {
                     0,
                     listOf(),
                     ShuffleManager(0, listOf()),
+                    GrpcShuffleManager(),
                     CacheManager(100)))
         }
     }
 }
 
-class GrpcMaster(private val workers: List<Int>): Master {
-    private val channels = workers.map { port ->
-        ManagedChannelBuilder.forAddress("localhost", port)
+class GrpcMaster(private val workers: List<String>): Master {
+    private val channels = workers.map { address ->
+        ManagedChannelBuilder.forTarget(address)
             .usePlaintext()
             .build()
     }

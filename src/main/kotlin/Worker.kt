@@ -20,8 +20,10 @@ import java.io.File
 
 class Worker(port: Int) {
     private val shuffleManager = ShuffleManager(port, listOf(8080, 8081))
+    private val grpcShuffleManager = GrpcShuffleManager()
+
     private val cacheManager = CacheManager(100)
-    val ctx = WorkerContext(port, listOf(8080, 8081), shuffleManager, cacheManager)
+    val ctx = WorkerContext(port, listOf(8080, 8081), shuffleManager, grpcShuffleManager, cacheManager)
 
     private suspend fun processRunCall(call: ApplicationCall) {
         try {
@@ -82,8 +84,8 @@ class Worker(port: Int) {
             return toGrpcValue(result)
         }
 
-        override fun shuffleRead(request: Adp.WorkerId): Flow<Adp.Value> {
-            return super.shuffleRead(request)
+        override fun shuffleRead(info: Adp.ShuffleInfo): Flow<Adp.Value> {
+            return grpcShuffleManager.blockFor(info.shuffleId, info.worker)
         }
     }
 

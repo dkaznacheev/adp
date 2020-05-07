@@ -8,11 +8,12 @@ message Value {
   bytes value = 1;
 }
 
-message WorkerId {
-  int32 id = 1;
+message ShuffleInfo {
+  int32 worker = 1;
+  int32 shuffleId = 2;
 }
 
 service Worker {
   rpc execute(Operation) returns (Value) {}
-  rpc shuffleRead(WorkerId) returns (stream Value) {}
+  rpc shuffleRead(ShuffleInfo) returns (stream Value) {}
 }

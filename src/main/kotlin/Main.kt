@@ -8,6 +8,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import rowdata.ColumnDataType
 import utils.SerUtils
+import java.io.File
 
 fun sertest() {
     val f: suspend (Int) -> Int = {
@@ -156,7 +157,8 @@ fun mapSyncTest() {
 }
 
 fun reduceGrpcTest() {
-    val master = GrpcMaster(listOf(8090, 8091))
+    val workers = File("workers.conf").readLines()
+    val master = GrpcMaster(workers)
     CsvRDD(master,
     "tmp.csv",
     true,
