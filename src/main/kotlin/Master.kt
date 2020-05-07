@@ -48,7 +48,9 @@ class GrpcMaster(private val workers: List<Int>): Master {
 
             workerStubs.map { worker ->
                 async {
-                    channel.send(worker.execute(grpcOp) as R)
+                    val response = worker.execute(grpcOp)
+                    val ba = response.value.toByteArray()
+                    channel.send(SerUtils.deserialize(ba) as R)
                 }
             }.awaitAll()
 

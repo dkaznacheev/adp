@@ -18,6 +18,8 @@ object SerUtils {
         return ObjectInputStream(ByteArrayInputStream(serialized)).readObject()
     }
 
+    fun toHexString(ba: ByteArray) = ba.joinToString("") { "%02x".format(it) }
+
     fun base64encode(a: ByteArray): String {
         return String(Base64.getEncoder().encode(a))
     }

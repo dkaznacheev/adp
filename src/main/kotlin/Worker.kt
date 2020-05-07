@@ -79,7 +79,6 @@ class Worker(port: Int) {
             val result = coroutineScope {
                 rop.executeSerializable(this, ctx)
             }
-
             return toGrpcValue(result)
         }
 

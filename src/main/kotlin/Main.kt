@@ -168,7 +168,7 @@ fun reduceGrpcTest() {
 
 fun main(args: Array<String>) {
     if (args.isNotEmpty() && args[0] == "worker") {
-        Worker(args[1].toInt()).start()
+        Worker(args[1].toInt()).startRPC()
     } else {
         reduceGrpcTest()
     }
