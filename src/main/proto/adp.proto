@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+message Operation {
+  bytes op = 1;
+}
+
+message Value {
+  bytes value = 1;
+}
+
+message WorkerId {
+  int32 id = 1;
+}
+
+service Worker {
+  rpc execute(Operation) returns (Value) {}
+  rpc shuffleRead(WorkerId) returns (stream Value) {}
+}
