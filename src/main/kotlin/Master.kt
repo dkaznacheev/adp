@@ -5,6 +5,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import api.MAX_CAP
 import api.operations.ParallelOperation
+import com.google.protobuf.ByteString
+import io.grpc.ManagedChannelBuilder
 import utils.SerUtils
 import java.io.ByteArrayInputStream
 import java.io.ObjectInputStream
@@ -27,21 +29,46 @@ class LocalMaster: Master {
     }
 }
 
-class MultiWorkerMaster(private val workers: List<Int>): Master {
-    private val client = HttpClient()
+class GrpcMaster(private val workers: List<Int>): Master {
+    private val channels = workers.map { port ->
+        ManagedChannelBuilder.forAddress("localhost", port)
+            .usePlaintext()
+            .build()
+    }
 
-    fun test() {
-        for (worker in workers) {
-            runBlocking(Dispatchers.IO) {
-                try {
-                    val res = client.get<String>("http://127.0.0.1:$worker/test")
-                    println(res)
-                } catch (e: Exception) {
-                    e.printStackTrace()
+    private val workerStubs = channels.map {
+        WorkerGrpcKt.WorkerCoroutineStub(it)
+    }
+
+    override fun <T, R> execute(op: ParallelOperation<T, R>): R {
+        val grpcOp = toGrpcOperation(op)
+        return runBlocking {
+            val channel = Channel<R>(MAX_CAP)
+            val result = async { op.consumeParts(channel) }
+
+            workerStubs.map { worker ->
+                async {
+                    channel.send(worker.execute(grpcOp) as R)
                 }
-            }
+            }.awaitAll()
+
+            channel.close()
+            result.await()
         }
     }
+
+    companion object {
+        fun toGrpcOperation(op: ParallelOperation<*, *>): Adp.Operation {
+            return Adp.Operation
+                .newBuilder()
+                .setOp(ByteString.copyFrom(op.serialize()))
+                .build()
+        }
+    }
+}
+
+class MultiWorkerMaster(private val workers: List<Int>): Master {
+    private val client = HttpClient()
 
     private fun deserializeResult(byteArray: ByteArray): Any {
         val bis = ObjectInputStream(ByteArrayInputStream(byteArray))

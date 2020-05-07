@@ -1,4 +1,6 @@
 import api.operations.ParallelOperationImpl
+import com.google.protobuf.ByteString
+import io.grpc.ServerBuilder
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
@@ -12,6 +14,7 @@ import io.ktor.routing.routing
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
 import utils.SerUtils
 import java.io.File
 
@@ -67,5 +70,45 @@ class Worker(port: Int) {
 
     fun start() {
         server.start(wait = true)
+    }
+
+    private inner class ADPServerService: WorkerGrpcKt.WorkerCoroutineImplBase() {
+        override suspend fun execute(request: Adp.Operation): Adp.Value {
+            val op = SerUtils.deserialize(request.op.toByteArray())
+            val rop = op as ParallelOperationImpl<*, *>
+            val result = coroutineScope {
+                rop.executeSerializable(this, ctx)
+            }
+
+            return toGrpcValue(result)
+        }
+
+        override fun shuffleRead(request: Adp.WorkerId): Flow<Adp.Value> {
+            return super.shuffleRead(request)
+        }
+    }
+
+    private val rpcServer = ServerBuilder
+        .forPort(port - 8080 + 8090)
+        .addService(ADPServerService())
+        .build()
+
+    fun startRPC() {
+        rpcServer.start()
+        println("Server started, listening on ${rpcServer.port}")
+        Runtime.getRuntime().addShutdownHook(
+            Thread {
+                println("*** shutting down gRPC server since JVM is shutting down")
+                rpcServer.shutdown()
+                println("*** server shut down")
+            }
+        )
+        rpcServer.awaitTermination()
+    }
+
+    companion object {
+        private fun toGrpcValue(ba: ByteArray): Adp.Value {
+            return Adp.Value.newBuilder().setValue(ByteString.copyFrom(ba)).build()
+        }
     }
 }

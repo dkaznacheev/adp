@@ -155,10 +155,21 @@ fun mapSyncTest() {
     }.show()
 }
 
+fun reduceGrpcTest() {
+    val master = GrpcMaster(listOf(8090, 8091))
+    CsvRDD(master,
+    "tmp.csv",
+    true,
+        types = listOf(ColumnDataType.STRING, ColumnDataType.INT))
+        .map { it.getInt("col1")!! }
+        .reduce { a, b -> a + b}
+        .also { println(it) }
+}
+
 fun main(args: Array<String>) {
     if (args.isNotEmpty() && args[0] == "worker") {
         Worker(args[1].toInt()).start()
     } else {
-        mapSyncTest()
+        reduceGrpcTest()
     }
 }
