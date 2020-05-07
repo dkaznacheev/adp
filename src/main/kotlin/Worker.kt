@@ -85,7 +85,7 @@ class Worker(port: Int) {
         }
 
         override fun shuffleRead(info: Adp.ShuffleInfo): Flow<Adp.Value> {
-            return grpcShuffleManager.blockFor(info.shuffleId, info.worker)
+            return grpcShuffleManager.blockFor(info.shuffleId, info.workerId)
         }
     }
 

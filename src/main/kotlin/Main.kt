@@ -155,7 +155,7 @@ fun mapSyncTest() {
 
 fun reduceGrpcTest() {
     val workers = File("workers.conf").readLines()
-    val master = GrpcMaster(workers)
+    val master = GrpcMaster(8090, workers)
     CsvRDD(master,
     "tmp.csv",
     true,

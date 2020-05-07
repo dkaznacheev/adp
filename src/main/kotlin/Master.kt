@@ -7,6 +7,7 @@ import api.MAX_CAP
 import api.operations.ParallelOperation
 import com.google.protobuf.ByteString
 import io.grpc.ManagedChannelBuilder
+import io.grpc.ServerBuilder
 import utils.SerUtils
 import java.io.ByteArrayInputStream
 import java.io.ObjectInputStream
@@ -30,7 +31,7 @@ class LocalMaster: Master {
     }
 }
 
-class GrpcMaster(private val workers: List<String>): Master {
+class GrpcMaster(private val port: Int, private val workers: List<String>): Master {
     private val channels = workers.map { address ->
         ManagedChannelBuilder.forTarget(address)
             .usePlaintext()
@@ -41,11 +42,22 @@ class GrpcMaster(private val workers: List<String>): Master {
         WorkerGrpcKt.WorkerCoroutineStub(it)
     }
 
+    private val rpcServer = ServerBuilder
+            .forPort(port)
+            .addService(ADPMasterService())
+            .build()
+
     override fun <T, R> execute(op: ParallelOperation<T, R>): R {
         val grpcOp = toGrpcOperation(op)
+
+        rpcServer.start()
+
         return runBlocking {
             val channel = Channel<R>(MAX_CAP)
             val result = async { op.consumeParts(channel) }
+
+            val distributionChannel = Channel<Adp.WorkerDistribution>()
+            waitForDistributions(this, distributionChannel)
 
             workerStubs.map { worker ->
                 async {
@@ -57,6 +69,29 @@ class GrpcMaster(private val workers: List<String>): Master {
 
             channel.close()
             result.await()
+        }
+    }
+
+    private fun waitForDistributions(scope: CoroutineScope, distributionChannel: Channel<Adp.WorkerDistribution>) {
+        scope.launch {
+            val workersRemaining = workers.toMutableList()
+            val distributions = mutableListOf<Pair<Int, Int>>()
+            while(workersRemaining.isNotEmpty()) {
+                val dst = distributionChannel.receive()
+                workersRemaining.remove(dst.workerId)
+                distributions.add(dst.min to dst.max)
+            }
+        }
+    }
+
+    private inner class ADPMasterService: MasterGrpcKt.MasterCoroutineImplBase() {
+        override suspend fun getWorkers(request: Adp.Void): Adp.WorkerList {
+            return Adp.WorkerList.newBuilder().addAllWorkers(workers).build()
+        }
+
+        override suspend fun sampleDistribution(request: Adp.WorkerDistribution): Adp.Distribution {
+
+            return super.sampleDistribution(request)
         }
     }
 

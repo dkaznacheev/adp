@@ -1,3 +1,5 @@
+import com.google.protobuf.ByteString
+import io.grpc.ManagedChannelBuilder
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -12,15 +14,20 @@ import java.lang.Exception
 import java.util.Comparator
 
 class GrpcShuffleManager {
+    private val myId = File("id").readText()
+    private val masterAddress = "localhost:8090"
     private val outPath = File("shuffle/outg")
     private val BUFFER_SIZE = 1000
 
-    fun blockFor(shuffleId: Int, worker: Int): Flow<Adp.Value> {
+    private val masterStub = MasterGrpcKt.MasterCoroutineStub(ManagedChannelBuilder.forTarget(masterAddress)
+            .usePlaintext()
+            .build())
+
+    fun blockFor(shuffleId: Int, worker: String): Flow<Adp.Value> {
         return flow {
 
         }
     }
-
 
     private suspend fun <T> sortAndWrite(scope: CoroutineScope,
                                          recChannel: ReceiveChannel<T>,
@@ -38,6 +45,28 @@ class GrpcShuffleManager {
             dumpBuffer(buffer, dumpNumber++, shuffleDir, comparator)
         val blocksNumber = dumpNumber
         mergeBlocks(scope, shuffleDir, comparator, 0, blocksNumber)
+        shuffleDir.resolve("shuffle0-$blocksNumber").renameTo(shuffleDir.resolve("block"))
+
+        val (min, max) = findMinMax<T>(shuffleDir.resolve("block"))
+        val request = Adp.WorkerDistribution.newBuilder()
+                .setMin(ByteString.copyFrom(SerUtils.serialize(min)))
+                .setMax(ByteString.copyFrom(SerUtils.serialize(max)))
+                .setWorkerId(myId)
+                .build()
+
+        val distribution = masterStub.sampleDistribution(request)
+
+    }
+
+    private suspend fun <T> findMinMax(file: File): Pair<T, T> {
+        return withContext(Dispatchers.IO) {
+            var first = file.bufferedReader().lineSequence().first()
+            var last: String? = null
+            file.bufferedReader().lineSequence().forEach {
+                last = it
+            }
+            SerUtils.unwrap(first) as T to SerUtils.unwrap(last!!) as T
+        }
     }
 
     private fun writeObject(bw: BufferedWriter, o: Any?) {
@@ -45,7 +74,11 @@ class GrpcShuffleManager {
         bw.newLine()
     }
 
-    private suspend fun <T> mergeBlocks(scope: CoroutineScope, shuffleDir: File, comparator: Comparator<T>, left: Int, right: Int) {
+    private suspend fun <T> mergeBlocks(scope: CoroutineScope,
+                                        shuffleDir: File,
+                                        comparator: Comparator<T>,
+                                        left: Int,
+                                        right: Int){
         System.err.println("merging $left - $right")
         if (right - left <= 1) {
             return
@@ -139,7 +172,7 @@ class GrpcShuffleManager {
             shuffleDir.mkdir()
         }
         sortAndWrite(scope, recChannel, shuffleDir, comparator)
-
+        //val workers =
     }
 
     fun <T> readMerged(scope: CoroutineScope, shuffleId: Int): ReceiveChannel<T> {

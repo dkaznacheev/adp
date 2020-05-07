@@ -9,11 +9,36 @@ message Value {
 }
 
 message ShuffleInfo {
-  int32 worker = 1;
+  string workerId = 1;
   int32 shuffleId = 2;
+}
+
+message WorkerList {
+  repeated string workers = 1;
+}
+
+message Void {
+
+}
+
+message WorkerDistribution {
+  string workerId = 1;
+  bytes min = 2;
+  bytes max = 3;
+}
+
+message Distribution {
+  repeated bytes partitions = 1;
+  bytes myPartitionMin = 2;
+  bytes myPartitionMax = 3;
 }
 
 service Worker {
   rpc execute(Operation) returns (Value) {}
   rpc shuffleRead(ShuffleInfo) returns (stream Value) {}
+}
+
+service Master {
+  rpc getWorkers(Void) returns (WorkerList) {}
+  rpc sampleDistribution(WorkerDistribution) returns (Distribution) {}
 }
