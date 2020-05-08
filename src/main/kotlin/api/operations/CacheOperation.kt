@@ -1,6 +1,6 @@
 package api.operations
 
-import WorkerContext
+import worker.WorkerContext
 import api.SUCCESS
 import api.rdd.RDD
 import api.rdd.RDDImpl

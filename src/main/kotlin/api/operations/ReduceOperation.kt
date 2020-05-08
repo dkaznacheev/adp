@@ -1,6 +1,6 @@
 package api.operations
 
-import WorkerContext
+import worker.WorkerContext
 import api.rdd.RDD
 import api.rdd.RDDImpl
 import kotlinx.coroutines.CoroutineScope

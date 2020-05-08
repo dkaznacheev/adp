@@ -1,7 +1,7 @@
 package api.rdd
 
-import Master
-import WorkerContext
+import master.Master
+import worker.WorkerContext
 import api.operations.CacheOperation
 import api.operations.ReduceOperation
 import api.operations.SaveAsCsvOperation

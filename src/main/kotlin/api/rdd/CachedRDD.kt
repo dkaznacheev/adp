@@ -1,12 +1,12 @@
 package api.rdd
 
-import Master
-import WorkerContext
+import master.Master
+import worker.WorkerContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 
 class CachedRDD<T>(master: Master,
-             val cacheId: Int): RDD<T>(master) {
+                   val cacheId: Int): RDD<T>(master) {
     override fun toImpl(): RDDImpl<T> {
         return CachedRDDImpl(cacheId)
     }

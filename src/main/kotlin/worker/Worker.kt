@@ -1,3 +1,7 @@
+package worker
+
+import Adp
+import WorkerGrpcKt
 import api.operations.ParallelOperationImpl
 import com.google.protobuf.ByteString
 import io.grpc.ServerBuilder

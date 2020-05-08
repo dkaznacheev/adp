@@ -1,3 +1,7 @@
+package worker
+
+import Adp
+import MasterGrpcKt
 import com.google.protobuf.ByteString
 import io.grpc.ManagedChannelBuilder
 import kotlinx.coroutines.*

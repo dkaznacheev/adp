@@ -1,5 +1,9 @@
+package master
+
+import Adp
+import MasterGrpcKt
+import WorkerGrpcKt
 import io.ktor.client.HttpClient
-import io.ktor.client.request.get
 import io.ktor.client.request.post
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -9,6 +13,10 @@ import com.google.protobuf.ByteString
 import io.grpc.ManagedChannelBuilder
 import io.grpc.ServerBuilder
 import utils.SerUtils
+import worker.CacheManager
+import worker.GrpcShuffleManager
+import worker.ShuffleManager
+import worker.WorkerContext
 import java.io.ByteArrayInputStream
 import java.io.ObjectInputStream
 
@@ -21,10 +29,10 @@ class LocalMaster: Master {
         return runBlocking {
             op.toImpl().execute(
                 this,
-                WorkerContext(
-                    ShuffleManager(0, listOf()),
-                    GrpcShuffleManager(),
-                    CacheManager(100)))
+                    WorkerContext(
+                            ShuffleManager(0, listOf()),
+                            GrpcShuffleManager(),
+                            CacheManager(100)))
         }
     }
 }
@@ -94,8 +102,7 @@ class GrpcMaster(private val port: Int, private val workers: List<String>): Mast
 
     companion object {
         fun toGrpcOperation(op: ParallelOperation<*, *>, workerId: String): Adp.Operation {
-            return Adp.Operation
-                .newBuilder()
+            return Adp.Operation.newBuilder()
                 .setOp(ByteString.copyFrom(op.serialize()))
                 .setWorkerId(workerId)
                 .build()

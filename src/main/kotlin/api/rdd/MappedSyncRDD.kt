@@ -1,6 +1,6 @@
 package api.rdd
 
-import WorkerContext
+import worker.WorkerContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.map

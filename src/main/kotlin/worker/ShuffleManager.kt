@@ -1,3 +1,5 @@
+package worker
+
 import api.MAX_CAP
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
