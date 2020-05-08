@@ -22,8 +22,6 @@ class LocalMaster: Master {
             op.toImpl().execute(
                 this,
                 WorkerContext(
-                    0,
-                    listOf(),
                     ShuffleManager(0, listOf()),
                     GrpcShuffleManager(),
                     CacheManager(100)))
@@ -48,8 +46,6 @@ class GrpcMaster(private val port: Int, private val workers: List<String>): Mast
             .build()
 
     override fun <T, R> execute(op: ParallelOperation<T, R>): R {
-        val grpcOp = toGrpcOperation(op)
-
         rpcServer.start()
 
         return runBlocking {
@@ -59,8 +55,9 @@ class GrpcMaster(private val port: Int, private val workers: List<String>): Mast
             val distributionChannel = Channel<Adp.WorkerDistribution>()
             waitForDistributions(this, distributionChannel)
 
-            workerStubs.map { worker ->
+            workerStubs.zip(workers).map { (worker, id) ->
                 async {
+                    val grpcOp = toGrpcOperation(op, id)
                     val response = worker.execute(grpcOp)
                     val ba = response.value.toByteArray()
                     channel.send(SerUtils.deserialize(ba) as R)
@@ -96,10 +93,11 @@ class GrpcMaster(private val port: Int, private val workers: List<String>): Mast
     }
 
     companion object {
-        fun toGrpcOperation(op: ParallelOperation<*, *>): Adp.Operation {
+        fun toGrpcOperation(op: ParallelOperation<*, *>, workerId: String): Adp.Operation {
             return Adp.Operation
                 .newBuilder()
                 .setOp(ByteString.copyFrom(op.serialize()))
+                .setWorkerId(workerId)
                 .build()
         }
     }

@@ -2,6 +2,7 @@ syntax = "proto3";
 
 message Operation {
   bytes op = 1;
+  string workerId = 2;
 }
 
 message Value {
@@ -23,8 +24,9 @@ message Void {
 
 message WorkerDistribution {
   string workerId = 1;
-  bytes min = 2;
-  bytes max = 3;
+  int32 shuffleId = 2;
+  bytes min = 3;
+  bytes max = 4;
 }
 
 message Distribution {

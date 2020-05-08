@@ -1,3 +1,4 @@
+import com.google.protobuf.ByteString
 import io.grpc.ManagedChannelBuilder
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -10,14 +11,16 @@ import utils.SerUtils
 import java.io.BufferedWriter
 import java.io.File
 import java.util.Comparator
+import kotlin.system.measureTimeMillis
 
-class GrpcShuffleManager {
-    //private val myId = File("id").readText()
+class GrpcShuffleManager() {
     private val masterAddress = "localhost:8090"
+    var workerId: String? = null
+
     @PublishedApi internal val outPath = File("shuffle/outg")
     private val BUFFER_SIZE = 1000
 
-    private val masterStub = MasterGrpcKt.MasterCoroutineStub(ManagedChannelBuilder.forTarget(masterAddress)
+    @PublishedApi internal val masterStub = MasterGrpcKt.MasterCoroutineStub(ManagedChannelBuilder.forTarget(masterAddress)
             .usePlaintext()
             .build())
 
@@ -33,7 +36,7 @@ class GrpcShuffleManager {
         shuffleDir: File,
         comparator: Comparator<T>,
         serializer: SerUtils.Serializer<T>
-    ) {
+    ): Pair<String, String> {
         val buffer = mutableListOf<T>()
         var dumpNumber = 0
         recChannel.consumeEach {
@@ -47,16 +50,11 @@ class GrpcShuffleManager {
         val blocksNumber = dumpNumber
         mergeBlocks(scope, shuffleDir, comparator, serializer, 0, blocksNumber)
         shuffleDir.resolve("shuffle0-$blocksNumber").renameTo(shuffleDir.resolve("block"))
-//
-//        val (min, max) = findMinMax<T>(shuffleDir.resolve("block"))
-//        val request = Adp.WorkerDistribution.newBuilder()
-//                .setMin(ByteString.copyFrom(SerUtils.serialize(min)))
-//                .setMax(ByteString.copyFrom(SerUtils.serialize(max)))
-//                .setWorkerId(myId)
-//                .build()
-//
-//        val distribution = masterStub.sampleDistribution(request)
 
+        val (min, max) = findMinMax<T>(shuffleDir.resolve("block"))
+        val minSer = serializer.serialize(min)
+        val maxSer = serializer.serialize(max)
+        return minSer to maxSer
     }
 
     private suspend fun <T> findMinMax(file: File): Pair<T, T> {
@@ -176,8 +174,16 @@ class GrpcShuffleManager {
             shuffleDir.mkdir()
         }
         val serializer = SerUtils.getSerializer<T>()
-        sortAndWrite(scope, recChannel, shuffleDir, comparator, serializer)
-        //val workers =
+        val (min, max) = sortAndWrite(scope, recChannel, shuffleDir, comparator, serializer)
+        val request = Adp.WorkerDistribution.newBuilder()
+            .setMin(ByteString.copyFrom(min.toByteArray()))
+            .setMax(ByteString.copyFrom(max.toByteArray()))
+            .setWorkerId(workerId)
+            .setShuffleId(shuffleId)
+            .build()
+
+        val distribution = masterStub.sampleDistribution(request)
+
     }
 
     fun <T> readMerged(scope: CoroutineScope, shuffleId: Int): ReceiveChannel<T> {
@@ -189,14 +195,16 @@ fun main() {
     val sm = GrpcShuffleManager()
     runBlocking {
         val channel = produce {
-            for (i in (1..100000)) {
+            for (i in (1..10000000)) {
                 send(i)
             }
         }
-        sm.writeAndBroadcast(this, channel, 123, kotlin.Comparator{a, b -> a - b})
-        val serializer = SerUtils.getSerializer<Int>()
-        File("shuffle/outg/shuffle123/block").inputStream().bufferedReader().lines().forEach {
-            println(serializer.deserialize(it))
-        }
+        measureTimeMillis {
+            sm.writeAndBroadcast(this, channel, 123, kotlin.Comparator { a, b -> a - b })
+        }.also { println(it) }
+//        val serializer = SerUtils.getSerializer<Int>()
+//        File("shuffle/outg/shuffle123/block").inputStream().bufferedReader().lines().forEach {
+//            println(serializer.deserialize(it))
+//        }
     }
 }

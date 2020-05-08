@@ -23,7 +23,7 @@ class Worker(port: Int) {
     private val grpcShuffleManager = GrpcShuffleManager()
 
     private val cacheManager = CacheManager(100)
-    val ctx = WorkerContext(port, listOf(8080, 8081), shuffleManager, grpcShuffleManager, cacheManager)
+    val ctx = WorkerContext(shuffleManager, grpcShuffleManager, cacheManager)
 
     private suspend fun processRunCall(call: ApplicationCall) {
         try {
@@ -77,6 +77,8 @@ class Worker(port: Int) {
     private inner class ADPServerService: WorkerGrpcKt.WorkerCoroutineImplBase() {
         override suspend fun execute(request: Adp.Operation): Adp.Value {
             val op = SerUtils.deserialize(request.op.toByteArray())
+            ctx.workerId = request.workerId
+            grpcShuffleManager.workerId = request.workerId
             val rop = op as ParallelOperationImpl<*, *>
             val result = coroutineScope {
                 rop.executeSerializable(this, ctx)
