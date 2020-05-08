@@ -79,7 +79,7 @@ class GrpcMaster(private val port: Int, private val workers: List<String>): Mast
             while(workersRemaining.isNotEmpty()) {
                 val dst = distributionChannel.receive()
                 workersRemaining.remove(dst.workerId)
-                distributions.add(dst.min to dst.max)
+                //distributions.add(dst.min to dst.max)
             }
         }
     }

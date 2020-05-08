@@ -1,4 +1,3 @@
-import com.google.protobuf.ByteString
 import io.grpc.ManagedChannelBuilder
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -10,13 +9,12 @@ import kotlinx.coroutines.flow.flow
 import utils.SerUtils
 import java.io.BufferedWriter
 import java.io.File
-import java.lang.Exception
 import java.util.Comparator
 
 class GrpcShuffleManager {
-    private val myId = File("id").readText()
+    //private val myId = File("id").readText()
     private val masterAddress = "localhost:8090"
-    private val outPath = File("shuffle/outg")
+    @PublishedApi internal val outPath = File("shuffle/outg")
     private val BUFFER_SIZE = 1000
 
     private val masterStub = MasterGrpcKt.MasterCoroutineStub(ManagedChannelBuilder.forTarget(masterAddress)
@@ -29,32 +27,35 @@ class GrpcShuffleManager {
         }
     }
 
-    private suspend fun <T> sortAndWrite(scope: CoroutineScope,
-                                         recChannel: ReceiveChannel<T>,
-                                         shuffleDir: File,
-                                         comparator: Comparator<T>) {
+    @PublishedApi internal suspend fun <T> sortAndWrite(
+        scope: CoroutineScope,
+        recChannel: ReceiveChannel<T>,
+        shuffleDir: File,
+        comparator: Comparator<T>,
+        serializer: SerUtils.Serializer<T>
+    ) {
         val buffer = mutableListOf<T>()
         var dumpNumber = 0
         recChannel.consumeEach {
             buffer.add(it)
             if (buffer.size >= BUFFER_SIZE) {
-                dumpBuffer(buffer, dumpNumber++, shuffleDir, comparator)
+                dumpBuffer(buffer, dumpNumber++, shuffleDir, comparator, serializer)
             }
         }
         if (buffer.size > 0)
-            dumpBuffer(buffer, dumpNumber++, shuffleDir, comparator)
+            dumpBuffer(buffer, dumpNumber++, shuffleDir, comparator, serializer)
         val blocksNumber = dumpNumber
-        mergeBlocks(scope, shuffleDir, comparator, 0, blocksNumber)
+        mergeBlocks(scope, shuffleDir, comparator, serializer, 0, blocksNumber)
         shuffleDir.resolve("shuffle0-$blocksNumber").renameTo(shuffleDir.resolve("block"))
-
-        val (min, max) = findMinMax<T>(shuffleDir.resolve("block"))
-        val request = Adp.WorkerDistribution.newBuilder()
-                .setMin(ByteString.copyFrom(SerUtils.serialize(min)))
-                .setMax(ByteString.copyFrom(SerUtils.serialize(max)))
-                .setWorkerId(myId)
-                .build()
-
-        val distribution = masterStub.sampleDistribution(request)
+//
+//        val (min, max) = findMinMax<T>(shuffleDir.resolve("block"))
+//        val request = Adp.WorkerDistribution.newBuilder()
+//                .setMin(ByteString.copyFrom(SerUtils.serialize(min)))
+//                .setMax(ByteString.copyFrom(SerUtils.serialize(max)))
+//                .setWorkerId(myId)
+//                .build()
+//
+//        val distribution = masterStub.sampleDistribution(request)
 
     }
 
@@ -69,14 +70,15 @@ class GrpcShuffleManager {
         }
     }
 
-    private fun writeObject(bw: BufferedWriter, o: Any?) {
-        bw.write(SerUtils.wrap(o))
+    private fun <T> writeObject(bw: BufferedWriter, o: T, serializer: SerUtils.Serializer<T>) {
+        bw.write(serializer.serialize(o))
         bw.newLine()
     }
 
     private suspend fun <T> mergeBlocks(scope: CoroutineScope,
                                         shuffleDir: File,
                                         comparator: Comparator<T>,
+                                        serializer: SerUtils.Serializer<T>,
                                         left: Int,
                                         right: Int){
         System.err.println("merging $left - $right")
@@ -85,15 +87,15 @@ class GrpcShuffleManager {
         }
         val middle = (right + left) / 2
         val leftMerge = scope.async {
-            mergeBlocks(scope, shuffleDir, comparator, left, middle)
+            mergeBlocks(scope, shuffleDir, comparator, serializer, left, middle)
         }
         val rightMerge = scope.async {
-            mergeBlocks(scope, shuffleDir, comparator, middle, right)
+            mergeBlocks(scope, shuffleDir, comparator, serializer, middle, right)
         }
         leftMerge.await()
         rightMerge.await()
 
-        mergeFiles(shuffleDir, left, middle, right, comparator)
+        mergeFiles(shuffleDir, left, middle, right, comparator, serializer)
         System.err.println("merged $left - $right")
     }
 
@@ -102,7 +104,8 @@ class GrpcShuffleManager {
         left: Int,
         middle: Int,
         right: Int,
-        comparator: Comparator<T>
+        comparator: Comparator<T>,
+        serializer: SerUtils.Serializer<T>
     ) {
         withContext(Dispatchers.IO) {
             val leftFile = shuffleDir.resolve("shuffle$left-$middle")
@@ -117,21 +120,21 @@ class GrpcShuffleManager {
             var rightItem: T? = null
             while (leftLines.hasNext() || rightLines.hasNext()) {
                 if (leftLines.hasNext() && leftItem == null) {
-                    leftItem = SerUtils.unwrap(leftLines.next()) as T
+                    leftItem = serializer.deserialize(leftLines.next())
                 }
                 if (rightLines.hasNext() && rightItem == null) {
-                    rightItem = SerUtils.unwrap(rightLines.next()) as T
+                    rightItem = serializer.deserialize(rightLines.next())
                 }
 
                 if (rightItem == null) {
-                    writeObject(bw, leftItem)
+                    writeObject(bw, leftItem!!, serializer)
                     leftItem = null
                 } else {
                     if (leftItem == null || comparator.compare(leftItem, rightItem) >= 0) {
-                        writeObject(bw, rightItem)
+                        writeObject(bw, rightItem, serializer)
                         rightItem = null
                     } else {
-                        writeObject(bw, leftItem)
+                        writeObject(bw, leftItem, serializer)
                         leftItem = null
                     }
                 }
@@ -147,14 +150,15 @@ class GrpcShuffleManager {
     private suspend fun <T> dumpBuffer(buffer: MutableList<T>,
                                dumpNumber: Int,
                                shuffleDir: File,
-                               comparator: Comparator<T>) {
+                               comparator: Comparator<T>,
+                               serializer: SerUtils.Serializer<T>) {
         val outFile = shuffleDir.resolve("shuffle$dumpNumber-${dumpNumber + 1}")
 
         buffer.sortWith(comparator)
         withContext(Dispatchers.IO) {
             val bw = outFile.outputStream().bufferedWriter()
             for (element in buffer) {
-                writeObject(bw, element)
+                writeObject(bw, element, serializer)
             }
             bw.flush()
             bw.close()
@@ -162,7 +166,7 @@ class GrpcShuffleManager {
         buffer.clear()
     }
 
-    suspend fun <T> writeAndBroadcast(
+    suspend inline fun <reified T> writeAndBroadcast(
             scope: CoroutineScope,
             recChannel: ReceiveChannel<T>,
             shuffleId: Int,
@@ -171,7 +175,8 @@ class GrpcShuffleManager {
         if (!shuffleDir.exists()) {
             shuffleDir.mkdir()
         }
-        sortAndWrite(scope, recChannel, shuffleDir, comparator)
+        val serializer = SerUtils.getSerializer<T>()
+        sortAndWrite(scope, recChannel, shuffleDir, comparator, serializer)
         //val workers =
     }
 
@@ -189,8 +194,9 @@ fun main() {
             }
         }
         sm.writeAndBroadcast(this, channel, 123, kotlin.Comparator{a, b -> a - b})
-        File("shuffle/outg/shuffle123/shuffle0-10").inputStream().bufferedReader().lines().forEach {
-            SerUtils.deserialize(SerUtils.base64decode(it)).also { println(it) }
+        val serializer = SerUtils.getSerializer<Int>()
+        File("shuffle/outg/shuffle123/block").inputStream().bufferedReader().lines().forEach {
+            println(serializer.deserialize(it))
         }
     }
 }
