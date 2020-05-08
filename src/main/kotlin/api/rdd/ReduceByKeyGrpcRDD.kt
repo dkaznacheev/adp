@@ -5,6 +5,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.launch
+import master.MasterShuffleManager
 import java.util.Comparator
 import kotlin.math.abs
 
@@ -14,6 +15,10 @@ fun <T> defaultComparator() : Comparator<T> {
 
 class ReduceByKeyGrpcRDD<K, T>(val parent: RDD<Pair<K, T>>, val comparator: Comparator<K> = defaultComparator(), val f: (T, T) -> T): RDD<Pair<K, T>>(parent.master) {
     private val shuffleId = abs(hashCode())
+
+    init {
+        master.addShuffleManager(MasterShuffleManager(shuffleId, comparator))
+    }
 
     override fun toImpl(): RDDImpl<Pair<K, T>> {
         return ReduceByKeyGrpcRDDImpl(parent.toImpl(), shuffleId, comparator, f)

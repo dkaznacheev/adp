@@ -25,8 +25,8 @@ message Void {
 message WorkerDistribution {
   string workerId = 1;
   int32 shuffleId = 2;
-  bytes min = 3;
-  bytes max = 4;
+  string min = 3;
+  string max = 4;
 }
 
 message Distribution {

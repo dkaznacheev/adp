@@ -55,20 +55,18 @@ class GrpcShuffleManager() {
         mergeBlocks(scope, shuffleDir, comparator, serializer, 0, blocksNumber)
         shuffleDir.resolve("shuffle0-$blocksNumber").renameTo(shuffleDir.resolve("block"))
 
-        val (min, max) = findMinMax<T>(shuffleDir.resolve("block"))
-        val minSer = serializer.serialize(min)
-        val maxSer = serializer.serialize(max)
-        return minSer to maxSer
+        val (min, max) = findMinMax<T>(shuffleDir.resolve("block"), serializer)
+        return SerUtils.wrap(min) to SerUtils.wrap(max)
     }
 
-    private suspend fun <T> findMinMax(file: File): Pair<T, T> {
+    private suspend fun <T> findMinMax(file: File, serializer: SerUtils.Serializer<T>): Pair<T, T> {
         return withContext(Dispatchers.IO) {
             var first = file.bufferedReader().lineSequence().first()
             var last: String? = null
             file.bufferedReader().lineSequence().forEach {
                 last = it
             }
-            SerUtils.unwrap(first) as T to SerUtils.unwrap(last!!) as T
+            serializer.deserialize(first) to serializer.deserialize(last!!)
         }
     }
 
@@ -180,8 +178,8 @@ class GrpcShuffleManager() {
         val serializer = SerUtils.getSerializer<T>()
         val (min, max) = sortAndWrite(scope, recChannel, shuffleDir, comparator, serializer)
         val request = Adp.WorkerDistribution.newBuilder()
-            .setMin(ByteString.copyFrom(min.toByteArray()))
-            .setMax(ByteString.copyFrom(max.toByteArray()))
+            .setMin(min)
+            .setMax(max)
             .setWorkerId(workerId)
             .setShuffleId(shuffleId)
             .build()
