@@ -47,6 +47,14 @@ object SerUtils {
         fun deserialize(s: String): T
     }
 
+    fun getSerializer(o: Any): Serializer<Any?> {
+        return when(o) {
+            is Int -> IntSerializer() as Serializer<Any?>
+            is String -> StringSerializer()  as Serializer<Any?>
+            else -> DefaultSerializer()
+        }
+    }
+
     inline fun <reified T> getSerializer(): Serializer<T> {
         return when(T::class) {
             Int::class -> IntSerializer() as Serializer<T>

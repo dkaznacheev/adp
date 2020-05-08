@@ -189,7 +189,7 @@ fun main() {
     val sm = GrpcShuffleManager()
     runBlocking {
         val channel = produce {
-            for (i in (1..10000)) {
+            for (i in (1..100000)) {
                 send(i)
             }
         }
