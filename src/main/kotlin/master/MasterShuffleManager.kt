@@ -5,7 +5,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import utils.SerUtils
 
-class MasterShuffleManager<T>(val shuffleId: Int, val comparator: Comparator<T>) {
+class MasterShuffleManager<T>(val shuffleId: Int, private val comparator: Comparator<T>) {
     private val distributionChannel = Channel<Adp.WorkerDistribution>(10000)
 
     fun listenForDistributions(scope: CoroutineScope,
@@ -17,14 +17,11 @@ class MasterShuffleManager<T>(val shuffleId: Int, val comparator: Comparator<T>)
             while(workersRemaining.isNotEmpty()) {
                 val dst = distributionChannel.receive()
                 workersRemaining.remove(dst.workerId)
-                val dMin: T = SerUtils.unwrap(dst.min) as T
-                val dMax: T = SerUtils.unwrap(dst.max) as T
-                distributions.add(dMin)
-                distributions.add(dMax)
+                val sample = dst.sampleList.map { SerUtils.deserialize(it.toByteArray()) as T }
+                distributions.addAll(sample)
             }
 
             distributions.sortWith(comparator)
-
         }
     }
 

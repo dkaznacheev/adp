@@ -15,6 +15,8 @@ import utils.SerUtils
 import java.io.BufferedWriter
 import java.io.File
 import java.util.Comparator
+import kotlin.random.Random
+import kotlin.streams.toList
 import kotlin.system.measureTimeMillis
 
 class GrpcShuffleManager() {
@@ -23,6 +25,7 @@ class GrpcShuffleManager() {
 
     @PublishedApi internal val outPath = File("shuffle/outg")
     private val BUFFER_SIZE = 1000
+    val SAMPLE_RATE = 1.0
 
     @PublishedApi internal val masterStub = MasterGrpcKt.MasterCoroutineStub(ManagedChannelBuilder.forTarget(masterAddress)
             .usePlaintext()
@@ -40,7 +43,7 @@ class GrpcShuffleManager() {
         shuffleDir: File,
         comparator: Comparator<T>,
         serializer: SerUtils.Serializer<T>
-    ): Pair<String, String> {
+    ) {
         val buffer = mutableListOf<T>()
         var dumpNumber = 0
         recChannel.consumeEach {
@@ -54,9 +57,6 @@ class GrpcShuffleManager() {
         val blocksNumber = dumpNumber
         mergeBlocks(scope, shuffleDir, comparator, serializer, 0, blocksNumber)
         shuffleDir.resolve("shuffle0-$blocksNumber").renameTo(shuffleDir.resolve("block"))
-
-        val (min, max) = findMinMax<T>(shuffleDir.resolve("block"), serializer)
-        return SerUtils.wrap(min) to SerUtils.wrap(max)
     }
 
     private suspend fun <T> findMinMax(file: File, serializer: SerUtils.Serializer<T>): Pair<T, T> {
@@ -176,16 +176,24 @@ class GrpcShuffleManager() {
             shuffleDir.mkdir()
         }
         val serializer = SerUtils.getSerializer<T>()
-        val (min, max) = sortAndWrite(scope, recChannel, shuffleDir, comparator, serializer)
+        sortAndWrite(scope, recChannel, shuffleDir, comparator, serializer)
+        val sample = getSample(shuffleDir.resolve("block"), serializer)
         val request = Adp.WorkerDistribution.newBuilder()
-            .setMin(min)
-            .setMax(max)
+            .addAllSample(sample)
             .setWorkerId(workerId)
             .setShuffleId(shuffleId)
             .build()
 
         val distribution = masterStub.sampleDistribution(request)
+    }
 
+    fun <T> getSample(file: File, serializer: SerUtils.Serializer<T>): List<ByteString> {
+        val random = Random(System.currentTimeMillis())
+        return file.bufferedReader().lines()
+                .filter { random.nextDouble(0.0, 1.0) < SAMPLE_RATE }
+                .map { SerUtils.serialize(serializer.deserialize(it)) }
+                .map { ByteString.copyFrom(it) }
+                .toList()
     }
 
     fun <T> readMerged(scope: CoroutineScope, shuffleId: Int): ReceiveChannel<T> {
