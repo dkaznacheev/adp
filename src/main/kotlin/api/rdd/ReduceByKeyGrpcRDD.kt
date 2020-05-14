@@ -5,6 +5,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.launch
+import master.LocalMaster
 import master.MasterShuffleManager
 import utils.SerUtils
 import shuffle.GrpcShuffleManager
@@ -21,7 +22,7 @@ fun <K, T> pairComparator(cmp: Comparator<K> = defaultComparator()): Comparator<
     return kotlin.Comparator { (k1, _), (k2, _) -> cmp.compare(k1, k2) }
 }
 
-class ReduceByKeyGrpcRDD<K, T>(val parent: RDD<Pair<K, T>>,
+class ReduceByKeyRDD<K, T>(val parent: RDD<Pair<K, T>>,
                                val keyComparator: Comparator<K> = defaultComparator(),
                                val serializer: SerUtils.Serializer<Pair<K, T>>,
                                val f: (T, T) -> T): RDD<Pair<K, T>>(parent.master) {
@@ -99,5 +100,14 @@ class LocalReduceByKeyRDDImpl<K, T>(parent: RDDImpl<Pair<K, T>>,
     override fun getShuffleManager(ctx: WorkerContext, shuffleId: Int): WorkerShuffleManager<Pair<K, T>> {
         return LocalShuffleManager<Pair<K, T>>(ctx, shuffleId, pairComparator(comparator), serializer)
     }
+}
 
+fun main() {
+    fileRdd<String>(LocalMaster(), "tmp.csv")
+            .map {
+                val parts = it.split(",")
+                parts[0] to parts[1].toInt()
+            }.reduceByKey {
+                s1, s2 -> s1 + s2
+            }.show()
 }

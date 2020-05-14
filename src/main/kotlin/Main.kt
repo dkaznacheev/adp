@@ -86,7 +86,7 @@ fun reduceByKeyLocalTest() {
         types = listOf(ColumnDataType.STRING, ColumnDataType.INT)
     ).map {
         it.getString("col0")!! to it.getInt("col1")!!
-    }.reduceByKey { a, b -> a + b}
+    }.reduceByKeyLegacy { a, b -> a + b}
         .map { it.toString() }
         .reduce { a, b -> a + b }
         .also { println(it) }
@@ -114,7 +114,7 @@ fun reduceByKeyMultiNodeTest() {
         types = listOf(ColumnDataType.STRING, ColumnDataType.INT)
     ).map {
         it.getString("col0")!! to it.getInt("col1")!!
-    }.reduceByKey { a, b -> a + b}
+    }.reduceByKeyLegacy { a, b -> a + b}
         .show()
 }
 

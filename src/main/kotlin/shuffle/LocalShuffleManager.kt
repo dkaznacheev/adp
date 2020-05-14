@@ -7,13 +7,12 @@ import kotlinx.coroutines.channels.produce
 import utils.ExternalSorter
 import utils.SerUtils
 import worker.WorkerContext
-import java.io.File
 
 class LocalShuffleManager<T>(val ctx: WorkerContext,
                              shuffleId: Int,
                              private val comparator: Comparator<T>,
                              private val serializer: SerUtils.Serializer<T>): WorkerShuffleManager<T>  {
-    private val shuffleDir = File("local/shuffle$shuffleId")
+    private val shuffleDir = createTempDir().resolve("local/shuffle$shuffleId")
 
     private val waitChannel = Channel<Unit>()
 
