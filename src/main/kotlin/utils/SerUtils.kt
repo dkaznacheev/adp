@@ -7,6 +7,7 @@ import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import java.io.Serializable
 import java.util.*
+import kotlin.reflect.KClass
 
 object SerUtils {
     fun serialize(o: Any?): ByteArray {
@@ -51,6 +52,14 @@ object SerUtils {
         return when(o) {
             is Int -> IntSerializer() as Serializer<Any?>
             is String -> StringSerializer()  as Serializer<Any?>
+            else -> DefaultSerializer()
+        }
+    }
+
+    fun getSerializer(c: KClass<*>): Serializer<Any?> {
+        return when(c) {
+            Int::class -> IntSerializer() as Serializer<Any?>
+            String::class -> StringSerializer()  as Serializer<Any?>
             else -> DefaultSerializer()
         }
     }

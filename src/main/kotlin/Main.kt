@@ -42,7 +42,7 @@ fun rddTestAsync2() {
         HttpClient().get<String>(it)
     }.map{
         it[14]
-    }.saveAsObject("result")
+    }.saveAsObject<Char>("result")
 }
 
 fun rddTestLocal() {

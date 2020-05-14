@@ -14,11 +14,14 @@ import kotlinx.coroutines.withContext
 import utils.SerUtils
 import java.io.File
 
-class SaveAsObjectOperation<T>(rdd: RDD<T>, val name: String): ParallelOperation<T, Byte>(rdd) {
+class SaveAsObjectOperation<T>(rdd: RDD<T>,
+                               val name: String,
+                               val serializer: SerUtils.Serializer<Any?>): ParallelOperation<T, Byte>(rdd) {
     override fun toImpl(): ParallelOperationImpl<T, Byte> {
-        return SaveAsCsvOperationImpl(
+        return SaveAsObjectOperationImpl(
             rdd.toImpl(),
-            name
+            name,
+            serializer
         )
     }
 
@@ -27,7 +30,9 @@ class SaveAsObjectOperation<T>(rdd: RDD<T>, val name: String): ParallelOperation
     }
 }
 
-class SaveAsObjectOperationImpl<T>(rdd: RDDImpl<T>, val name: String): ParallelOperationImpl<T, Byte>(rdd) {
+class SaveAsObjectOperationImpl<T>(rdd: RDDImpl<T>,
+                                   val name: String,
+                                   val serializer: SerUtils.Serializer<Any?>): ParallelOperationImpl<T, Byte>(rdd) {
     @KtorExperimentalAPI
     override suspend fun execute(scope: CoroutineScope, ctx: WorkerContext): Byte {
         val recChannel = rdd.channel(scope, ctx)
@@ -38,16 +43,13 @@ class SaveAsObjectOperationImpl<T>(rdd: RDDImpl<T>, val name: String): ParallelO
 
     private suspend fun writeToFile(scope: CoroutineScope, recChannel: ReceiveChannel<T>, outFile: File) {
         withContext(Dispatchers.IO) {
-            var initialized = false
-            var serializer: SerUtils.Serializer<Any?>? = null
             val writer = outFile.bufferedWriter()
             recChannel.consumeEach { o ->
-                if (!initialized) {
-                    serializer = SerUtils.getSerializer(o as Any)
-                    initialized = false
-                }
-                serializer?.serialize(o)?.let { writer.write(it) }
+                writer.write(serializer.serialize(o))
+                writer.newLine()
             }
+            writer.flush()
+            writer.close()
         }
     }
 }
