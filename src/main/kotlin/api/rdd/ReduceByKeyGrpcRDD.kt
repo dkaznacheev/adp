@@ -7,6 +7,7 @@ import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.launch
 import master.MasterShuffleManager
 import utils.SerUtils
+import worker.GrpcShuffleManager
 import kotlin.Comparator
 import kotlin.math.abs
 
@@ -41,7 +42,9 @@ class ReduceByKeyGrpcRDDImpl<K, T>(val parent: RDDImpl<Pair<K, T>>,
     override fun channel(scope: CoroutineScope, ctx: WorkerContext): ReceiveChannel<Pair<K, T>> {
         val recChannel = parent.channel(scope, ctx)
 
-        val shuffleManager = ctx.grpcShuffleManager
+        val shuffleManager = GrpcShuffleManager(ctx)
+        ctx.addShuffleManager(shuffleId, shuffleManager)
+
         scope.launch {
             shuffleManager.writeAndBroadcast(
                     scope,

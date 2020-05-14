@@ -19,9 +19,8 @@ import kotlin.random.Random
 import kotlin.streams.toList
 import kotlin.system.measureTimeMillis
 
-class GrpcShuffleManager() {
+class GrpcShuffleManager(val ctx: WorkerContext) {
     private val masterAddress = "localhost:8090"
-    var workerId: String? = null
 
     @PublishedApi internal val outPath = File("shuffle/outg")
     private val BUFFER_SIZE = 1000
@@ -170,7 +169,7 @@ class GrpcShuffleManager() {
 
         val request = Adp.WorkerDistribution.newBuilder()
             .addAllSample(sample)
-            .setWorkerId(workerId)
+            .setWorkerId(ctx.workerId ?: error("Null workerId"))
             .setShuffleId(shuffleId)
             .build()
 
@@ -227,7 +226,7 @@ class GrpcShuffleManager() {
 }
 
 fun main() {
-    val sm = GrpcShuffleManager()
+    val sm = GrpcShuffleManager(WorkerContext.stub())
     runBlocking {
         val channel = produce {
             for (i in (1..1000000)) {

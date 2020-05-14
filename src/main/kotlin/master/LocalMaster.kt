@@ -14,7 +14,7 @@ class LocalMaster: Master {
                     this,
                     WorkerContext(
                             ShuffleManager(0, listOf()),
-                            GrpcShuffleManager(),
+                            mutableMapOf(),
                             CacheManager(100)))
         }
     }

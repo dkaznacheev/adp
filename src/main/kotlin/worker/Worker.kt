@@ -24,10 +24,10 @@ import java.io.File
 
 class Worker(port: Int) {
     private val shuffleManager = ShuffleManager(port, listOf(8080, 8081))
-    private val grpcShuffleManager = GrpcShuffleManager()
+    private val shuffleManagers = mutableMapOf<Int, GrpcShuffleManager>()
 
     private val cacheManager = CacheManager(100)
-    val ctx = WorkerContext(shuffleManager, grpcShuffleManager, cacheManager)
+    val ctx = WorkerContext(shuffleManager, shuffleManagers, cacheManager)
 
     private suspend fun processRunCall(call: ApplicationCall) {
         try {
@@ -82,7 +82,6 @@ class Worker(port: Int) {
         override suspend fun execute(request: Adp.Operation): Adp.Value {
             val op = SerUtils.deserialize(request.op.toByteArray())
             ctx.workerId = request.workerId
-            grpcShuffleManager.workerId = request.workerId
             val rop = op as ParallelOperationImpl<*, *>
             val result = coroutineScope {
                 rop.executeSerializable(this, ctx)
@@ -91,7 +90,7 @@ class Worker(port: Int) {
         }
 
         override fun shuffleRead(info: Adp.ShuffleInfo): Flow<Adp.Value> {
-            return grpcShuffleManager.blockFor(info.shuffleId, info.workerId)
+            return shuffleManagers[info.shuffleId]!!.blockFor(info.shuffleId, info.workerId)
         }
     }
 
