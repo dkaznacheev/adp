@@ -8,6 +8,7 @@ import api.operations.SaveAsCsvOperation
 import api.operations.SaveAsObjectOperation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
+import master.LocalMaster
 import utils.SerUtils
 import java.io.Serializable
 import kotlin.math.abs
@@ -16,9 +17,9 @@ fun <K, V> RDD<Pair<K, V>>.reduceByKey(f: (V, V) -> V): RDD<Pair<K, V>> {
     return ReduceByKeyRDD(this, f)
 }
 
-inline fun <reified K, reified V> RDD<Pair<K, V>>.reduceByKeyV(noinline f: (V, V) -> V): RDD<Pair<K, V>> {
-    val c = K::class.java
-    return ReduceByKeyRDD(this, f)
+inline fun <reified K, reified V> RDD<Pair<K, V>>.reduceByKeyGrpc(comparator: Comparator<K> = defaultComparator(), noinline f: (V, V) -> V): RDD<Pair<K, V>> {
+    val serializer = SerUtils.getSerializer<Pair<K, V>>()
+    return ReduceByKeyGrpcRDD(this, comparator, serializer, f)
 }
 
 abstract class RDD<T>(val master: Master) {

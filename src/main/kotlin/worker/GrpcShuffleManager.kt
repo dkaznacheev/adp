@@ -159,12 +159,12 @@ class GrpcShuffleManager() {
             scope: CoroutineScope,
             recChannel: ReceiveChannel<T>,
             shuffleId: Int,
-            comparator: Comparator<T>) {
+            comparator: Comparator<T>,
+            serializer: SerUtils.Serializer<T>) {
         val shuffleDir = outPath.resolve("shuffle$shuffleId")
         if (!shuffleDir.exists()) {
             shuffleDir.mkdir()
         }
-        val serializer = SerUtils.getSerializer<T>()
         sortAndWrite(scope, recChannel, shuffleDir, comparator, serializer)
         val sample = getSample(shuffleDir.resolve("block"), serializer)
 
@@ -235,7 +235,7 @@ fun main() {
             }
         }
         measureTimeMillis {
-            sm.writeAndBroadcast(this, channel, 123, kotlin.Comparator { a, b -> a - b })
+            sm.writeAndBroadcast(this, channel, 123, kotlin.Comparator { a, b -> a - b }, SerUtils.getSerializer())
         }.also { println(it) }
 //        val serializer = SerUtils.getSerializer<Int>()
 //        File("shuffle/outg/shuffle123/block").inputStream().bufferedReader().lines().forEach {

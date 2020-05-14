@@ -6,28 +6,37 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.launch
 import master.MasterShuffleManager
-import java.util.Comparator
+import utils.SerUtils
+import kotlin.Comparator
 import kotlin.math.abs
 
 fun <T> defaultComparator() : Comparator<T> {
     return kotlin.Comparator { a, b -> a.hashCode() - b.hashCode() }
 }
 
-class ReduceByKeyGrpcRDD<K, T>(val parent: RDD<Pair<K, T>>, val comparator: Comparator<K> = defaultComparator(), val f: (T, T) -> T): RDD<Pair<K, T>>(parent.master) {
+fun <K, T> pairComparator(cmp: Comparator<K> = defaultComparator()): Comparator<Pair<K, T>> {
+    return kotlin.Comparator { (k1, _), (k2, _) -> cmp.compare(k1, k2) }
+}
+
+class ReduceByKeyGrpcRDD<K, T>(val parent: RDD<Pair<K, T>>,
+                               val keyComparator: Comparator<K> = defaultComparator(),
+                               val serializer: SerUtils.Serializer<Pair<K, T>>,
+                               val f: (T, T) -> T): RDD<Pair<K, T>>(parent.master) {
     private val shuffleId = abs(hashCode())
 
     init {
-        master.addShuffleManager(MasterShuffleManager(shuffleId, comparator))
+        master.addShuffleManager(MasterShuffleManager(shuffleId, pairComparator(keyComparator), serializer))
     }
 
     override fun toImpl(): RDDImpl<Pair<K, T>> {
-        return ReduceByKeyGrpcRDDImpl(parent.toImpl(), shuffleId, comparator, f)
+        return ReduceByKeyGrpcRDDImpl(parent.toImpl(), shuffleId, keyComparator, serializer, f)
     }
 }
 
 class ReduceByKeyGrpcRDDImpl<K, T>(val parent: RDDImpl<Pair<K, T>>,
                                    val shuffleId: Int,
                                    val comparator: Comparator<K>,
+                                   val serializer: SerUtils.Serializer<Pair<K, T>>,
                                    val f: (T, T) -> T): RDDImpl<Pair<K, T>>() {
     override fun channel(scope: CoroutineScope, ctx: WorkerContext): ReceiveChannel<Pair<K, T>> {
         val recChannel = parent.channel(scope, ctx)
@@ -38,7 +47,9 @@ class ReduceByKeyGrpcRDDImpl<K, T>(val parent: RDDImpl<Pair<K, T>>,
                     scope,
                     recChannel,
                     shuffleId,
-                    kotlin.Comparator { (k1, _), (k2, _) -> comparator.compare(k1, k2) })
+                    pairComparator(comparator),
+                    serializer
+            )
         }
 
         return scope.produce<Pair<K, T>> {
