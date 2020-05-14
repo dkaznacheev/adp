@@ -24,7 +24,7 @@ import java.io.File
 
 class Worker(port: Int) {
     private val shuffleManager = ShuffleManager(port, listOf(8080, 8081))
-    private val shuffleManagers = mutableMapOf<Int, GrpcShuffleManager>()
+    private val shuffleManagers = mutableMapOf<Int, GrpcShuffleManager<*>>()
 
     private val cacheManager = CacheManager(100)
     val ctx = WorkerContext(shuffleManager, shuffleManagers, cacheManager)

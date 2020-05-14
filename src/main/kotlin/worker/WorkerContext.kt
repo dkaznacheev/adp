@@ -2,10 +2,10 @@ package worker
 
 class WorkerContext(
         val shuffleManager: ShuffleManager,
-        val shuffleManagers: MutableMap<Int, GrpcShuffleManager>,
+        val shuffleManagers: MutableMap<Int, GrpcShuffleManager<*>>,
         val cache: CacheManager) {
 
-    fun addShuffleManager(shuffleId: Int, shuffleManager: GrpcShuffleManager) {
+    fun addShuffleManager(shuffleId: Int, shuffleManager: GrpcShuffleManager<*>) {
         shuffleManagers[shuffleId] = shuffleManager
     }
 

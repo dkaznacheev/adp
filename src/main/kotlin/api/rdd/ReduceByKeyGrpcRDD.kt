@@ -42,17 +42,11 @@ class ReduceByKeyGrpcRDDImpl<K, T>(val parent: RDDImpl<Pair<K, T>>,
     override fun channel(scope: CoroutineScope, ctx: WorkerContext): ReceiveChannel<Pair<K, T>> {
         val recChannel = parent.channel(scope, ctx)
 
-        val shuffleManager = GrpcShuffleManager(ctx)
+        val shuffleManager = GrpcShuffleManager(ctx, shuffleId, pairComparator(comparator), serializer)
         ctx.addShuffleManager(shuffleId, shuffleManager)
 
         scope.launch {
-            shuffleManager.writeAndBroadcast(
-                    scope,
-                    recChannel,
-                    shuffleId,
-                    pairComparator(comparator),
-                    serializer
-            )
+            shuffleManager.writeAndBroadcast(scope, recChannel)
         }
 
         return scope.produce<Pair<K, T>> {

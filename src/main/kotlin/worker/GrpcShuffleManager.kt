@@ -2,6 +2,7 @@ package worker
 
 import Adp
 import MasterGrpcKt
+import api.rdd.defaultComparator
 import com.google.protobuf.ByteString
 import io.grpc.ManagedChannelBuilder
 import kotlinx.coroutines.*
@@ -11,6 +12,7 @@ import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import utils.ExternalSorter
 import utils.SerUtils
 import java.io.BufferedWriter
 import java.io.File
@@ -19,14 +21,17 @@ import kotlin.random.Random
 import kotlin.streams.toList
 import kotlin.system.measureTimeMillis
 
-class GrpcShuffleManager(val ctx: WorkerContext) {
+class GrpcShuffleManager<T>(val ctx: WorkerContext,
+                            private val shuffleId: Int,
+                            private val comparator: Comparator<T>,
+                            private val serializer: SerUtils.Serializer<T>) {
     private val masterAddress = "localhost:8090"
+    private val outPath = File("shuffle/outg")
+    private val shuffleDir = outPath.resolve("shuffle$shuffleId")
 
-    @PublishedApi internal val outPath = File("shuffle/outg")
-    private val BUFFER_SIZE = 1000
-    val SAMPLE_RATE = 1.0
+    private val SAMPLE_RATE = 1.0
 
-    @PublishedApi internal val masterStub = MasterGrpcKt.MasterCoroutineStub(ManagedChannelBuilder.forTarget(masterAddress)
+    private val masterStub = MasterGrpcKt.MasterCoroutineStub(ManagedChannelBuilder.forTarget(masterAddress)
             .usePlaintext()
             .build())
 
@@ -36,136 +41,16 @@ class GrpcShuffleManager(val ctx: WorkerContext) {
         }
     }
 
-    @PublishedApi internal suspend fun <T> sortAndWrite(
-        scope: CoroutineScope,
-        recChannel: ReceiveChannel<T>,
-        shuffleDir: File,
-        comparator: Comparator<T>,
-        serializer: SerUtils.Serializer<T>
-    ) {
-        val buffer = mutableListOf<T>()
-        var dumpNumber = 0
-        recChannel.consumeEach {
-            buffer.add(it)
-            if (buffer.size >= BUFFER_SIZE) {
-                dumpBuffer(buffer, dumpNumber++, shuffleDir, comparator, serializer)
-            }
-        }
-        if (buffer.size > 0)
-            dumpBuffer(buffer, dumpNumber++, shuffleDir, comparator, serializer)
-        val blocksNumber = dumpNumber
-        mergeBlocks(scope, shuffleDir, comparator, serializer, 0, blocksNumber)
-        shuffleDir.resolve("shuffle0-$blocksNumber").renameTo(shuffleDir.resolve("block"))
-    }
-
-    private fun <T> writeObject(bw: BufferedWriter, o: T, serializer: SerUtils.Serializer<T>) {
-        bw.write(serializer.serialize(o))
-        bw.newLine()
-    }
-
-    private suspend fun <T> mergeBlocks(scope: CoroutineScope,
-                                        shuffleDir: File,
-                                        comparator: Comparator<T>,
-                                        serializer: SerUtils.Serializer<T>,
-                                        left: Int,
-                                        right: Int){
-        System.err.println("merging $left - $right")
-        if (right - left <= 1) {
-            return
-        }
-        val middle = (right + left) / 2
-        val leftMerge = scope.async {
-            mergeBlocks(scope, shuffleDir, comparator, serializer, left, middle)
-        }
-        val rightMerge = scope.async {
-            mergeBlocks(scope, shuffleDir, comparator, serializer, middle, right)
-        }
-        leftMerge.await()
-        rightMerge.await()
-
-        mergeFiles(shuffleDir, left, middle, right, comparator, serializer)
-        System.err.println("merged $left - $right")
-    }
-
-    private suspend fun <T> mergeFiles(
-        shuffleDir: File,
-        left: Int,
-        middle: Int,
-        right: Int,
-        comparator: Comparator<T>,
-        serializer: SerUtils.Serializer<T>
-    ) {
-        withContext(Dispatchers.IO) {
-            val leftFile = shuffleDir.resolve("shuffle$left-$middle")
-            val rightFile = shuffleDir.resolve("shuffle$middle-$right")
-            val leftLines = leftFile.inputStream().bufferedReader().lineSequence().iterator()
-            val rightLines = rightFile.inputStream().bufferedReader().lineSequence().iterator()
-
-            val outFile = shuffleDir.resolve("shuffle$left-$right")
-            val bw = outFile.bufferedWriter()
-
-            var leftItem: T? = null
-            var rightItem: T? = null
-            while (leftLines.hasNext() || rightLines.hasNext()) {
-                if (leftLines.hasNext() && leftItem == null) {
-                    leftItem = serializer.deserialize(leftLines.next())
-                }
-                if (rightLines.hasNext() && rightItem == null) {
-                    rightItem = serializer.deserialize(rightLines.next())
-                }
-
-                if (rightItem == null) {
-                    writeObject(bw, leftItem!!, serializer)
-                    leftItem = null
-                } else {
-                    if (leftItem == null || comparator.compare(leftItem, rightItem) >= 0) {
-                        writeObject(bw, rightItem, serializer)
-                        rightItem = null
-                    } else {
-                        writeObject(bw, leftItem, serializer)
-                        leftItem = null
-                    }
-                }
-            }
-            bw.flush()
-            bw.close()
-
-            leftFile.delete()
-            rightFile.delete()
-        }
-    }
-
-    private suspend fun <T> dumpBuffer(buffer: MutableList<T>,
-                               dumpNumber: Int,
-                               shuffleDir: File,
-                               comparator: Comparator<T>,
-                               serializer: SerUtils.Serializer<T>) {
-        val outFile = shuffleDir.resolve("shuffle$dumpNumber-${dumpNumber + 1}")
-
-        buffer.sortWith(comparator)
-        withContext(Dispatchers.IO) {
-            val bw = outFile.outputStream().bufferedWriter()
-            for (element in buffer) {
-                writeObject(bw, element, serializer)
-            }
-            bw.flush()
-            bw.close()
-        }
-        buffer.clear()
-    }
-
-    suspend inline fun <reified T> writeAndBroadcast(
+    suspend fun writeAndBroadcast(
             scope: CoroutineScope,
-            recChannel: ReceiveChannel<T>,
-            shuffleId: Int,
-            comparator: Comparator<T>,
-            serializer: SerUtils.Serializer<T>) {
-        val shuffleDir = outPath.resolve("shuffle$shuffleId")
+            recChannel: ReceiveChannel<T>) {
         if (!shuffleDir.exists()) {
             shuffleDir.mkdir()
         }
-        sortAndWrite(scope, recChannel, shuffleDir, comparator, serializer)
-        val sample = getSample(shuffleDir.resolve("block"), serializer)
+
+        ExternalSorter(shuffleDir, comparator, serializer).sortAndWrite(scope, recChannel)
+
+        val sample = getSample(shuffleDir.resolve("block"))
 
         val request = Adp.WorkerDistribution.newBuilder()
             .addAllSample(sample)
@@ -174,7 +59,7 @@ class GrpcShuffleManager(val ctx: WorkerContext) {
             .build()
 
         val tstparts = listOf(333333, 666666).map { ByteString.copyFrom(SerUtils.serialize(it)) }
-        val distribution = Adp.Distribution.newBuilder().addAllPartitions(tstparts).setMyPartitionId(2).build()//masterStub.sampleDistribution(request)
+        val distribution = masterStub.sampleDistribution(request)
         splitToParts(distribution, shuffleDir, shuffleDir.resolve("block"), serializer, comparator)
     }
 
@@ -210,7 +95,7 @@ class GrpcShuffleManager(val ctx: WorkerContext) {
         }
     }
 
-    fun <T> getSample(file: File, serializer: SerUtils.Serializer<T>): List<ByteString> {
+    fun getSample(file: File): List<ByteString> {
         val random = Random(System.currentTimeMillis())
         return file.bufferedReader().lines()
                 .filter { random.nextDouble(0.0, 1.0) < SAMPLE_RATE }
@@ -226,7 +111,7 @@ class GrpcShuffleManager(val ctx: WorkerContext) {
 }
 
 fun main() {
-    val sm = GrpcShuffleManager(WorkerContext.stub())
+    val sm = GrpcShuffleManager(WorkerContext.stub(), 1, kotlin.Comparator { a, b -> a - b }, SerUtils.getSerializer<Int>())
     runBlocking {
         val channel = produce {
             for (i in (1..1000000)) {
@@ -234,7 +119,7 @@ fun main() {
             }
         }
         measureTimeMillis {
-            sm.writeAndBroadcast(this, channel, 123, kotlin.Comparator { a, b -> a - b }, SerUtils.getSerializer())
+            sm.writeAndBroadcast(this, channel)
         }.also { println(it) }
 //        val serializer = SerUtils.getSerializer<Int>()
 //        File("shuffle/outg/shuffle123/block").inputStream().bufferedReader().lines().forEach {
