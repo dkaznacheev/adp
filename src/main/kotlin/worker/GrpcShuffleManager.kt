@@ -167,14 +167,48 @@ class GrpcShuffleManager() {
         val serializer = SerUtils.getSerializer<T>()
         sortAndWrite(scope, recChannel, shuffleDir, comparator, serializer)
         val sample = getSample(shuffleDir.resolve("block"), serializer)
+
         val request = Adp.WorkerDistribution.newBuilder()
             .addAllSample(sample)
             .setWorkerId(workerId)
             .setShuffleId(shuffleId)
             .build()
 
-        val distribution = masterStub.sampleDistribution(request)
+        val tstparts = listOf(333333, 666666).map { ByteString.copyFrom(SerUtils.serialize(it)) }
+        val distribution = Adp.Distribution.newBuilder().addAllPartitions(tstparts).setMyPartitionId(2).build()//masterStub.sampleDistribution(request)
+        splitToParts(distribution, shuffleDir, shuffleDir.resolve("block"), serializer, comparator)
+    }
 
+    suspend fun <T> splitToParts(distribution: Adp.Distribution,
+                                 shuffleDir: File,
+                                 inFile: File,
+                                 serializer: SerUtils.Serializer<T>,
+                                 comparator: Comparator<T>) {
+        withContext(Dispatchers.IO) {
+            var blockId = 0
+            val partLimits = distribution.partitionsList.map { SerUtils.deserialize(it.toByteArray()) as T }
+            var currentPart = partLimits.first()
+            var currentWriter = shuffleDir.resolve("part0").bufferedWriter()
+
+            for (line in inFile.bufferedReader().lines()) {
+                val v = serializer.deserialize(line)
+
+                if (blockId < partLimits.size && comparator.compare(v, currentPart) >= 0) {
+                    blockId++
+                    if (blockId < partLimits.size) {
+                        currentPart = partLimits[blockId]
+                    }
+                    currentWriter.flush()
+                    currentWriter.close()
+                    currentWriter = shuffleDir.resolve("part$blockId").bufferedWriter()
+                }
+
+                currentWriter.write(line)
+                currentWriter.newLine()
+            }
+            currentWriter.flush()
+            currentWriter.close()
+        }
     }
 
     fun <T> getSample(file: File, serializer: SerUtils.Serializer<T>): List<ByteString> {
@@ -187,6 +221,7 @@ class GrpcShuffleManager() {
     }
 
     fun <T> readMerged(scope: CoroutineScope, shuffleId: Int): ReceiveChannel<T> {
+
         return Channel(10)
     }
 }
@@ -195,7 +230,7 @@ fun main() {
     val sm = GrpcShuffleManager()
     runBlocking {
         val channel = produce {
-            for (i in (1..10000000)) {
+            for (i in (1..1000000)) {
                 send(i)
             }
         }
