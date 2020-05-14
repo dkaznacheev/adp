@@ -1,10 +1,12 @@
 package master
 
 import api.operations.ParallelOperation
+import api.rdd.LocalReduceByKeyRDDImpl
+import api.rdd.RDDImpl
 import kotlinx.coroutines.runBlocking
 import worker.CacheManager
-import worker.GrpcShuffleManager
-import worker.ShuffleManager
+import shuffle.LegacyHashShuffleManager
+import utils.SerUtils
 import worker.WorkerContext
 
 class LocalMaster: Master {
@@ -13,7 +15,7 @@ class LocalMaster: Master {
             op.toImpl().execute(
                     this,
                     WorkerContext(
-                            ShuffleManager(0, listOf()),
+                            LegacyHashShuffleManager(0, listOf()),
                             mutableMapOf(),
                             CacheManager(100)))
         }
@@ -21,5 +23,9 @@ class LocalMaster: Master {
 
     override fun <K> addShuffleManager(masterShuffleManager: MasterShuffleManager<K>) {
 
+    }
+
+    override fun <K, T> getReduceByKeyRDDImpl(parent: RDDImpl<Pair<K, T>>, shuffleId: Int, keyComparator: Comparator<K>, serializer: SerUtils.Serializer<Pair<K, T>>, f: (T, T) -> T): RDDImpl<Pair<K, T>> {
+        return LocalReduceByKeyRDDImpl(parent, shuffleId, keyComparator, serializer, f)
     }
 }

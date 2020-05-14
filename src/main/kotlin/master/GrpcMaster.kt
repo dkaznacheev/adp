@@ -5,6 +5,8 @@ import MasterGrpcKt
 import WorkerGrpcKt
 import api.MAX_CAP
 import api.operations.ParallelOperation
+import api.rdd.RDDImpl
+import api.rdd.ReduceByKeyGrpcRDDImpl
 import com.google.protobuf.ByteString
 import io.grpc.ManagedChannelBuilder
 import io.grpc.ServerBuilder
@@ -28,6 +30,13 @@ class GrpcMaster(private val port: Int, private val workers: List<String>): Mast
     private val rpcServer = ServerBuilder.forPort(port)
             .addService(ADPMasterService())
             .build()
+
+    override fun <K, V> getReduceByKeyRDDImpl(parent: RDDImpl<Pair<K, V>>,
+                                              shuffleId: Int,
+                                              keyComparator: Comparator<K>,
+                                              serializer: SerUtils.Serializer<Pair<K, V>>, f: (V, V) -> V): RDDImpl<Pair<K, V>> {
+        return ReduceByKeyGrpcRDDImpl(parent, shuffleId, keyComparator, serializer, f)
+    }
 
     override fun <T, R> execute(op: ParallelOperation<T, R>): R {
         rpcServer.start()

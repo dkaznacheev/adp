@@ -19,11 +19,13 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import shuffle.GrpcShuffleManager
+import shuffle.LegacyHashShuffleManager
 import utils.SerUtils
 import java.io.File
 
 class Worker(port: Int) {
-    private val shuffleManager = ShuffleManager(port, listOf(8080, 8081))
+    private val shuffleManager = LegacyHashShuffleManager(port, listOf(8080, 8081))
     private val shuffleManagers = mutableMapOf<Int, GrpcShuffleManager<*>>()
 
     private val cacheManager = CacheManager(100)

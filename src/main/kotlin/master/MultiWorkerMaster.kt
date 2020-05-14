@@ -2,6 +2,9 @@ package master
 
 import api.MAX_CAP
 import api.operations.ParallelOperation
+import api.rdd.RDDImpl
+import api.rdd.ReduceByKeyGrpcRDD
+import api.rdd.ReduceByKeyGrpcRDDImpl
 import io.ktor.client.HttpClient
 import io.ktor.client.request.post
 import kotlinx.coroutines.async
@@ -49,5 +52,12 @@ class MultiWorkerMaster(private val workers: List<Int>): Master {
 
     override fun <K> addShuffleManager(masterShuffleManager: MasterShuffleManager<K>) {
 
+    }
+
+    override fun <K, V> getReduceByKeyRDDImpl(parent: RDDImpl<Pair<K, V>>,
+                                              shuffleId: Int,
+                                              keyComparator: Comparator<K>,
+                                              serializer: SerUtils.Serializer<Pair<K, V>>, f: (V, V) -> V): RDDImpl<Pair<K, V>> {
+        return ReduceByKeyGrpcRDDImpl(parent, shuffleId, keyComparator, serializer, f)
     }
 }

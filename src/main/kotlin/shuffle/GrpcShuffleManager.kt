@@ -1,20 +1,18 @@
-package worker
+package shuffle
 
 import Adp
 import MasterGrpcKt
-import api.rdd.defaultComparator
 import com.google.protobuf.ByteString
 import io.grpc.ManagedChannelBuilder
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
-import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import utils.ExternalSorter
 import utils.SerUtils
-import java.io.BufferedWriter
+import worker.WorkerContext
 import java.io.File
 import java.util.Comparator
 import kotlin.random.Random
@@ -24,7 +22,7 @@ import kotlin.system.measureTimeMillis
 class GrpcShuffleManager<T>(val ctx: WorkerContext,
                             private val shuffleId: Int,
                             private val comparator: Comparator<T>,
-                            private val serializer: SerUtils.Serializer<T>) {
+                            private val serializer: SerUtils.Serializer<T>): WorkerShuffleManager<T> {
     private val masterAddress = "localhost:8090"
     private val outPath = File("shuffle/outg")
     private val shuffleDir = outPath.resolve("shuffle$shuffleId")
@@ -41,7 +39,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
         }
     }
 
-    suspend fun writeAndBroadcast(
+    override suspend fun writeAndBroadcast(
             scope: CoroutineScope,
             recChannel: ReceiveChannel<T>) {
         if (!shuffleDir.exists()) {
@@ -104,7 +102,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
                 .toList()
     }
 
-    fun <T> readMerged(scope: CoroutineScope, shuffleId: Int): ReceiveChannel<T> {
+    override fun readMerged(scope: CoroutineScope, shuffleId: Int): ReceiveChannel<T> {
 
         return Channel(10)
     }

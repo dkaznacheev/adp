@@ -1,4 +1,4 @@
-package worker
+package shuffle
 
 import api.MAX_CAP
 import io.ktor.client.HttpClient
@@ -12,7 +12,7 @@ import kotlinx.coroutines.channels.produce
 import utils.SerUtils
 import java.io.File
 
-class ShuffleManager(val thisWorker: Int, val workers: List<Int>) {
+class LegacyHashShuffleManager(val thisWorker: Int, val workers: List<Int>) {
     private val openBroadcast = Channel<Unit>(workers.size + 1)
     private val outPath = File("shuffle/out")
     private val inPath = File("shuffle/in")
