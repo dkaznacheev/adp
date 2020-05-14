@@ -59,17 +59,6 @@ class GrpcShuffleManager() {
         shuffleDir.resolve("shuffle0-$blocksNumber").renameTo(shuffleDir.resolve("block"))
     }
 
-    private suspend fun <T> findMinMax(file: File, serializer: SerUtils.Serializer<T>): Pair<T, T> {
-        return withContext(Dispatchers.IO) {
-            var first = file.bufferedReader().lineSequence().first()
-            var last: String? = null
-            file.bufferedReader().lineSequence().forEach {
-                last = it
-            }
-            serializer.deserialize(first) to serializer.deserialize(last!!)
-        }
-    }
-
     private fun <T> writeObject(bw: BufferedWriter, o: T, serializer: SerUtils.Serializer<T>) {
         bw.write(serializer.serialize(o))
         bw.newLine()
@@ -185,6 +174,7 @@ class GrpcShuffleManager() {
             .build()
 
         val distribution = masterStub.sampleDistribution(request)
+
     }
 
     fun <T> getSample(file: File, serializer: SerUtils.Serializer<T>): List<ByteString> {

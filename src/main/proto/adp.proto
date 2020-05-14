@@ -30,8 +30,7 @@ message WorkerDistribution {
 
 message Distribution {
   repeated bytes partitions = 1;
-  bytes myPartitionMin = 2;
-  bytes myPartitionMax = 3;
+  int32 myPartitionId = 2;
 }
 
 service Worker {

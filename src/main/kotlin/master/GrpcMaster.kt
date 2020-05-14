@@ -62,7 +62,7 @@ class GrpcMaster(private val port: Int, private val workers: List<String>): Mast
         }
 
         override suspend fun sampleDistribution(request: Adp.WorkerDistribution): Adp.Distribution {
-            return shuffleManagers[request.shuffleId]?.sampleDistribution(request) ?:
+            return shuffleManagers[request.shuffleId]?.sampleDistribution(request, workers) ?:
                 super.sampleDistribution(request)
         }
     }
