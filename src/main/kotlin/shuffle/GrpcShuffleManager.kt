@@ -2,19 +2,23 @@ package shuffle
 
 import Adp
 import MasterGrpcKt
+import api.rdd.pairComparator
 import com.google.protobuf.ByteString
 import io.grpc.ManagedChannelBuilder
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
+import kotlinx.coroutines.channels.receiveOrNull
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import utils.ExternalSorter
+import utils.LazyChannel
 import utils.SerUtils
 import worker.WorkerContext
 import java.io.File
-import java.util.Comparator
+import java.util.*
 import kotlin.random.Random
 import kotlin.streams.toList
 import kotlin.system.measureTimeMillis
@@ -33,9 +37,16 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
             .usePlaintext()
             .build())
 
-    fun blockFor(shuffleId: Int, worker: String): Flow<Adp.Value> {
-        return flow {
+    private val partitionId = LazyChannel<Int>()
+    private val blocks = LazyChannel<List<LazyChannel<File>>>()
+    private val stubs = LazyChannel<List<WorkerGrpcKt.WorkerCoroutineStub>>()
 
+    fun blockFor(workerNum: Int): Flow<Adp.Value> {
+        return flow {
+            val file = blocks.get()[workerNum].get()
+            for (line in file.bufferedReader().lines()) {
+                emit(Adp.Value.newBuilder().setValue(ByteString.copyFrom(line.toByteArray())).build())
+            }
         }
     }
 
@@ -47,17 +58,25 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
         }
 
         ExternalSorter(shuffleDir, comparator, serializer).sortAndWrite(scope, recChannel)
-
         val sample = getSample(shuffleDir.resolve("block"))
 
         val request = Adp.WorkerDistribution.newBuilder()
-            .addAllSample(sample)
-            .setWorkerId(ctx.workerId ?: error("Null workerId"))
-            .setShuffleId(shuffleId)
-            .build()
+                .addAllSample(sample)
+                .setWorkerId(ctx.workerId ?: error("Null workerId"))
+                .setShuffleId(shuffleId)
+                .build()
 
         val tstparts = listOf(333333, 666666).map { ByteString.copyFrom(SerUtils.serialize(it)) }
         val distribution = masterStub.sampleDistribution(request)
+
+        partitionId.set(distribution.myPartitionId)
+        blocks.set((0 until distribution.partitionsList.size).map { LazyChannel<File>() })
+        stubs.set(distribution.workersList.map {
+            WorkerGrpcKt.WorkerCoroutineStub(ManagedChannelBuilder.forTarget(it)
+                    .usePlaintext()
+                    .build())
+        })
+
         splitToParts(distribution, shuffleDir, shuffleDir.resolve("block"), serializer, comparator)
     }
 
@@ -82,6 +101,8 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
                     }
                     currentWriter.flush()
                     currentWriter.close()
+                    blocks.get()[blockId - 1].set(shuffleDir.resolve("part${blockId - 1}"))
+
                     currentWriter = shuffleDir.resolve("part$blockId").bufferedWriter()
                 }
 
@@ -90,6 +111,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
             }
             currentWriter.flush()
             currentWriter.close()
+            blocks.get()[blockId].set(shuffleDir.resolve("part$blockId"))
         }
     }
 
@@ -102,26 +124,40 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
                 .toList()
     }
 
-    override fun readMerged(scope: CoroutineScope, shuffleId: Int): ReceiveChannel<T> {
+    override fun readMerged(scope: CoroutineScope): ReceiveChannel<T> {
+        return scope.produce {
+            val flows = stubs.get().map {
+                val partId = partitionId.get()
+                val request = Adp.ShuffleInfo.newBuilder()
+                        .setShuffleId(shuffleId)
+                        .setShuffleWorkerNum(partId)
+                        .build()
+                it.shuffleRead(request)
+            }.toList()
 
-        return Channel(10)
-    }
-}
+            val channels = (1..flows.size).map { Channel<T>(1000) }
 
-fun main() {
-    val sm = GrpcShuffleManager(WorkerContext.stub(), 1, kotlin.Comparator { a, b -> a - b }, SerUtils.getSerializer<Int>())
-    runBlocking {
-        val channel = produce {
-            for (i in (1..1000000)) {
-                send(i)
+            flows.zip(channels).forEach { (flow, channel) ->
+                launch {
+                    flow.collect {
+                        channel.send(serializer.deserialize(String(it.toByteArray())))
+                    }
+                    channel.close()
+                }
+            }
+
+            val pq = PriorityQueue<Pair<T, Int>>(pairComparator<T, Int>(comparator))
+            for ((i, channel) in channels.withIndex()) {
+                channel.receiveOrNull()?.let {
+                    pq.add(it to i)
+                }
+            }
+
+            while (!pq.isEmpty()) {
+                val (v, i) = pq.poll()
+                channels[i].receiveOrNull()?.also { pq.add(it to i) }
+                send(v)
             }
         }
-        measureTimeMillis {
-            sm.writeAndBroadcast(this, channel)
-        }.also { println(it) }
-//        val serializer = SerUtils.getSerializer<Int>()
-//        File("shuffle/outg/shuffle123/block").inputStream().bufferedReader().lines().forEach {
-//            println(serializer.deserialize(it))
-//        }
     }
 }

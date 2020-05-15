@@ -8,5 +8,5 @@ interface WorkerShuffleManager<T> {
             scope: CoroutineScope,
             recChannel: ReceiveChannel<T>)
 
-    fun readMerged(scope: CoroutineScope, shuffleId: Int): ReceiveChannel<T>
+    fun readMerged(scope: CoroutineScope): ReceiveChannel<T>
 }

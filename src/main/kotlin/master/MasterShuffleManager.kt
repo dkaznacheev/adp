@@ -43,6 +43,10 @@ class MasterShuffleManager<T>(val shuffleId: Int,
         distributionChannel.send(workerDist)
         val partitions = distribution?.await() ?: return Adp.Distribution.newBuilder().build()
         val index = workers.indexOf(workerDist.workerId)
-        return Adp.Distribution.newBuilder().addAllPartitions(partitions).setMyPartitionId(index).build()
+        return Adp.Distribution.newBuilder()
+                .addAllPartitions(partitions)
+                .setMyPartitionId(index)
+                .addAllWorkers(workers)
+                .build()
     }
 }

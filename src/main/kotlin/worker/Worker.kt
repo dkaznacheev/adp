@@ -92,7 +92,7 @@ class Worker(port: Int) {
         }
 
         override fun shuffleRead(info: Adp.ShuffleInfo): Flow<Adp.Value> {
-            return shuffleManagers[info.shuffleId]!!.blockFor(info.shuffleId, info.workerId)
+            return shuffleManagers[info.shuffleId]!!.blockFor(info.shuffleWorkerNum)
         }
     }
 

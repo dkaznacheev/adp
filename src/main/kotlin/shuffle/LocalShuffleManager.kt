@@ -25,7 +25,7 @@ class LocalShuffleManager<T>(val ctx: WorkerContext,
         waitChannel.send(Unit)
     }
 
-    override fun readMerged(scope: CoroutineScope, shuffleId: Int): ReceiveChannel<T> {
+    override fun readMerged(scope: CoroutineScope): ReceiveChannel<T> {
         return scope.produce {
             waitChannel.receive()
             val block = shuffleDir.resolve("block")

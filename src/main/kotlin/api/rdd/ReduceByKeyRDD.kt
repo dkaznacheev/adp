@@ -49,12 +49,9 @@ abstract class ReduceByKeyRDDImpl<K, T>(val parent: RDDImpl<Pair<K, T>>,
         val recChannel = parent.channel(scope, ctx)
         val shuffleManager = getShuffleManager(ctx, shuffleId)
 
-        scope.launch {
-            shuffleManager.writeAndBroadcast(scope, recChannel)
-        }
-
         return scope.produce<Pair<K, T>> {
-            val merged = shuffleManager.readMerged(scope, shuffleId)
+            shuffleManager.writeAndBroadcast(scope, recChannel)
+            val merged = shuffleManager.readMerged(scope)
             var currentPair: Pair<K, T>? = null
 
             for (pair in merged) {
@@ -100,14 +97,4 @@ class LocalReduceByKeyRDDImpl<K, T>(parent: RDDImpl<Pair<K, T>>,
     override fun getShuffleManager(ctx: WorkerContext, shuffleId: Int): WorkerShuffleManager<Pair<K, T>> {
         return LocalShuffleManager<Pair<K, T>>(ctx, shuffleId, pairComparator(comparator), serializer)
     }
-}
-
-fun main() {
-    fileRdd<String>(LocalMaster(), "tmp.csv")
-            .map {
-                val parts = it.split(",")
-                parts[0] to parts[1].toInt()
-            }.reduceByKey {
-                s1, s2 -> s1 + s2
-            }.show()
 }

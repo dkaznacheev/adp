@@ -10,8 +10,8 @@ message Value {
 }
 
 message ShuffleInfo {
-  string workerId = 1;
-  int32 shuffleId = 2;
+  int32 shuffleId = 1;
+  int32 shuffleWorkerNum = 2;
 }
 
 message WorkerList {
@@ -31,6 +31,7 @@ message WorkerDistribution {
 message Distribution {
   repeated bytes partitions = 1;
   int32 myPartitionId = 2;
+  repeated string workers = 3;
 }
 
 service Worker {
