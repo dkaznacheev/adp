@@ -11,7 +11,7 @@ interface Master {
 
     fun <K, T> getReduceByKeyRDDImpl(parent: RDDImpl<Pair<K, T>>,
                                      shuffleId: Int,
-                                     keyComparator: Comparator<K>,
+                                     keyComparator: (K, K) -> Int,
                                      serializer: SerUtils.Serializer<Pair<K, T>>,
                                      f: (T, T) -> T): RDDImpl<Pair<K, T>>
 }

@@ -55,7 +55,7 @@ class MultiWorkerMaster(private val workers: List<Int>): Master {
 
     override fun <K, V> getReduceByKeyRDDImpl(parent: RDDImpl<Pair<K, V>>,
                                               shuffleId: Int,
-                                              keyComparator: Comparator<K>,
+                                              keyComparator: (K, K) -> Int,
                                               serializer: SerUtils.Serializer<Pair<K, V>>, f: (V, V) -> V): RDDImpl<Pair<K, V>> {
         return ReduceByKeyGrpcRDDImpl(parent, shuffleId, keyComparator, serializer, f)
     }

@@ -27,7 +27,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
                             private val shuffleId: Int,
                             private val comparator: Comparator<T>,
                             private val serializer: SerUtils.Serializer<T>): WorkerShuffleManager<T> {
-    private val masterAddress = "localhost:8090"
+    private val masterAddress = "localhost:8099"
     private val outPath = File("shuffle/outg")
     private val shuffleDir = outPath.resolve("shuffle$shuffleId")
 

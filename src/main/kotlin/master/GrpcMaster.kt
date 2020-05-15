@@ -13,6 +13,7 @@ import io.grpc.ServerBuilder
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import utils.SerUtils
+import java.lang.Exception
 
 class GrpcMaster(private val port: Int, private val workers: List<String>): Master {
     private val shuffleManagers = mutableMapOf<Int, MasterShuffleManager<*>>()
@@ -33,7 +34,7 @@ class GrpcMaster(private val port: Int, private val workers: List<String>): Mast
 
     override fun <K, V> getReduceByKeyRDDImpl(parent: RDDImpl<Pair<K, V>>,
                                               shuffleId: Int,
-                                              keyComparator: Comparator<K>,
+                                              keyComparator: (K, K) -> Int,
                                               serializer: SerUtils.Serializer<Pair<K, V>>, f: (V, V) -> V): RDDImpl<Pair<K, V>> {
         return ReduceByKeyGrpcRDDImpl(parent, shuffleId, keyComparator, serializer, f)
     }
@@ -50,14 +51,20 @@ class GrpcMaster(private val port: Int, private val workers: List<String>): Mast
             workerStubs.zip(workers).map { (worker, id) ->
                 async {
                     val grpcOp = toGrpcOperation(op, id)
-                    val response = worker.execute(grpcOp)
-                    val ba = response.value.toByteArray()
-                    channel.send(SerUtils.deserialize(ba) as R)
+                    try {
+                        val response = worker.execute(grpcOp)
+                        val ba = response.value.toByteArray()
+                        channel.send(SerUtils.deserialize(ba) as R)
+                    } catch (e: Throwable) {
+                        e.printStackTrace()
+                        error(e)
+                    }
                 }
             }.awaitAll()
 
             channel.close()
             result.await()
+
         }
     }
 

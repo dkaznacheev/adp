@@ -14,6 +14,10 @@ import shuffle.WorkerShuffleManager
 import kotlin.Comparator
 import kotlin.math.abs
 
+fun <T> defaultComparatorFun() : (T, T) -> Int {
+    return { a, b -> a.hashCode() - b.hashCode() }
+}
+
 fun <T> defaultComparator() : Comparator<T> {
     return kotlin.Comparator { a, b -> a.hashCode() - b.hashCode() }
 }
@@ -23,13 +27,13 @@ fun <K, T> pairComparator(cmp: Comparator<K> = defaultComparator()): Comparator<
 }
 
 class ReduceByKeyRDD<K, T>(val parent: RDD<Pair<K, T>>,
-                               val keyComparator: Comparator<K> = defaultComparator(),
-                               val serializer: SerUtils.Serializer<Pair<K, T>>,
-                               val f: (T, T) -> T): RDD<Pair<K, T>>(parent.master) {
+                           val keyComparator: (K, K) -> Int,
+                           val serializer: SerUtils.Serializer<Pair<K, T>>,
+                           val f: (T, T) -> T): RDD<Pair<K, T>>(parent.master) {
     private val shuffleId = abs(hashCode())
 
     init {
-        master.addShuffleManager<Pair<K, T>>(MasterShuffleManager(shuffleId, pairComparator<K, T>(keyComparator), serializer))
+        master.addShuffleManager<Pair<K, T>>(MasterShuffleManager(shuffleId, pairComparator<K, T>(kotlin.Comparator(keyComparator)), serializer))
     }
 
     override fun toImpl(): RDDImpl<Pair<K, T>> {
@@ -39,7 +43,7 @@ class ReduceByKeyRDD<K, T>(val parent: RDD<Pair<K, T>>,
 
 abstract class ReduceByKeyRDDImpl<K, T>(val parent: RDDImpl<Pair<K, T>>,
                                         val shuffleId: Int,
-                                        val comparator: Comparator<K>,
+                                        val keyComparator: (K, K) -> Int,
                                         val serializer: SerUtils.Serializer<Pair<K, T>>,
                                         val f: (T, T) -> T): RDDImpl<Pair<K, T>>() {
 
@@ -75,12 +79,12 @@ abstract class ReduceByKeyRDDImpl<K, T>(val parent: RDDImpl<Pair<K, T>>,
 
 class ReduceByKeyGrpcRDDImpl<K, T>(parent: RDDImpl<Pair<K, T>>,
                                    shuffleId: Int,
-                                   comparator: Comparator<K>,
+                                   keyComparator: (K, K) -> Int,
                                    serializer: SerUtils.Serializer<Pair<K, T>>,
                                    f: (T, T) -> T):
-        ReduceByKeyRDDImpl<K, T>(parent, shuffleId, comparator, serializer, f) {
+        ReduceByKeyRDDImpl<K, T>(parent, shuffleId, keyComparator, serializer, f) {
     override fun getShuffleManager(ctx: WorkerContext, shuffleId: Int): WorkerShuffleManager<Pair<K, T>> {
-        val manager = GrpcShuffleManager<Pair<K, T>>(ctx, shuffleId, pairComparator(comparator), serializer)
+        val manager = GrpcShuffleManager<Pair<K, T>>(ctx, shuffleId, pairComparator(kotlin.Comparator(keyComparator)), serializer)
         ctx.addShuffleManager(shuffleId, manager)
         return manager
     }
@@ -89,12 +93,12 @@ class ReduceByKeyGrpcRDDImpl<K, T>(parent: RDDImpl<Pair<K, T>>,
 
 
 class LocalReduceByKeyRDDImpl<K, T>(parent: RDDImpl<Pair<K, T>>,
-                                   shuffleId: Int,
-                                   comparator: Comparator<K>,
-                                   serializer: SerUtils.Serializer<Pair<K, T>>,
-                                   f: (T, T) -> T):
-        ReduceByKeyRDDImpl<K, T>(parent, shuffleId, comparator, serializer, f) {
+                                    shuffleId: Int,
+                                    keyComparator: (K, K) -> Int,
+                                    serializer: SerUtils.Serializer<Pair<K, T>>,
+                                    f: (T, T) -> T):
+        ReduceByKeyRDDImpl<K, T>(parent, shuffleId, keyComparator, serializer, f) {
     override fun getShuffleManager(ctx: WorkerContext, shuffleId: Int): WorkerShuffleManager<Pair<K, T>> {
-        return LocalShuffleManager<Pair<K, T>>(ctx, shuffleId, pairComparator(comparator), serializer)
+        return LocalShuffleManager<Pair<K, T>>(ctx, shuffleId, pairComparator(kotlin.Comparator(keyComparator)), serializer)
     }
 }

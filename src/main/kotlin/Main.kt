@@ -169,10 +169,31 @@ fun reduceGrpcTest() {
         .also { println(it) }
 }
 
+fun reduceByKeyGrpcTest() {
+    val workers = File("workers.conf").readLines()
+    val master = GrpcMaster(8099, workers)
+    fileRdd<String>(master, "tmp.csv")
+        .mapSync {
+            val parts = it.split(",")
+            parts[0] to parts[1].toInt()
+        }
+        .reduceByKey<String, Int> { a, b -> a + b }
+        .saveAsObject<Pair<String, Int>>("shuffled.txt")
+}
+
+fun reduceGrpcFileTest() {
+    val workers = File("workers.conf").readLines()
+    val master = GrpcMaster(8099, workers)
+    fileRdd<String>(master,"tmp.csv")
+            .map { it.split(",")[1].toInt() }
+            .reduce { a, b -> a + b}
+            .also { println(it) }
+}
+
 fun main(args: Array<String>) {
     if (args.isNotEmpty() && args[0] == "worker") {
         Worker(args[1].toInt()).startRPC()
     } else {
-        reduceGrpcTest()
+        reduceGrpcFileTest()
     }
 }

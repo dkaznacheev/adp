@@ -43,7 +43,7 @@ object SerUtils {
         return Base64.getDecoder().decode(s)
     }
 
-    interface Serializer<T> {
+    interface Serializer<T>: Serializable {
         fun serialize(o: T): String
         fun deserialize(s: String): T
     }

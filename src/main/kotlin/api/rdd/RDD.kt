@@ -16,7 +16,7 @@ fun <K, V> RDD<Pair<K, V>>.reduceByKeyLegacy(f: (V, V) -> V): RDD<Pair<K, V>> {
     return LegacyReduceByKeyRDD(this, f)
 }
 
-inline fun <reified K, reified V> RDD<Pair<K, V>>.reduceByKey(comparator: Comparator<K> = defaultComparator(), noinline f: (V, V) -> V): RDD<Pair<K, V>> {
+inline fun <reified K, reified V> RDD<Pair<K, V>>.reduceByKey(noinline comparator: (K, K) -> Int = defaultComparatorFun<K>(), noinline f: (V, V) -> V): RDD<Pair<K, V>> {
     val serializer = SerUtils.getSerializer<Pair<K, V>>()
     return ReduceByKeyRDD(this, comparator, serializer, f)
 }
