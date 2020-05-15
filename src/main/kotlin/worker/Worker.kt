@@ -50,7 +50,7 @@ class Worker(port: Int) {
         }
     }
 
-    private val server = embeddedServer(Netty, port) {
+    private val server = embeddedServer(Netty, port - 8080 + 8070) {
         routing {
             get("/test") {
                 call.respondText { "Hello from port $port" }
@@ -82,11 +82,17 @@ class Worker(port: Int) {
 
     private inner class ADPServerService: WorkerGrpcKt.WorkerCoroutineImplBase() {
         override suspend fun execute(request: Adp.Operation): Adp.Value {
+            println("got request")
             val op = SerUtils.deserialize(request.op.toByteArray())
             ctx.workerId = request.workerId
             val rop = op as ParallelOperationImpl<*, *>
             val result = coroutineScope {
-                rop.executeSerializable(this, ctx)
+                try {
+                    rop.executeSerializable(this, ctx)
+                } catch (e: Throwable) {
+                    e.printStackTrace()
+                    error(e)
+                }
             }
             return toGrpcValue(result)
         }
@@ -97,7 +103,7 @@ class Worker(port: Int) {
     }
 
     private val rpcServer = ServerBuilder
-        .forPort(port - 8080 + 8090)
+        .forPort(port)
         .addService(ADPServerService())
         .build()
 

@@ -40,18 +40,23 @@ class ExternalSorter<T>(private val shuffleDir: File,
                                     right: Int){
         System.err.println("merging $left - $right")
         if (right - left <= 1) {
+            System.err.println("merged $left - $right")
             return
         }
         val middle = (right + left) / 2
-        val leftMerge = scope.async {
-            mergeBlocks(scope, left, middle)
-        }
-        val rightMerge = scope.async {
-            mergeBlocks(scope, middle, right)
-        }
-        leftMerge.await()
-        rightMerge.await()
+//        val leftMerge = scope.async {
+//            mergeBlocks(scope, left, middle)
+//        }
+//        val rightMerge = scope.async {
+//            mergeBlocks(scope, middle, right)
+//        }
+//        leftMerge.await()
+//        rightMerge.await()
 
+        mergeBlocks(scope, left, middle)
+        mergeBlocks(scope, middle, right)
+
+        System.err.println("merging files $left $right")
         mergeFiles(left, middle, right)
         System.err.println("merged $left - $right")
     }
@@ -107,6 +112,7 @@ class ExternalSorter<T>(private val shuffleDir: File,
 
         buffer.sortWith(comparator)
         withContext(Dispatchers.IO) {
+            System.err.println("dumping $outFile")
             val bw = outFile.outputStream().bufferedWriter()
             for (element in buffer) {
                 writeObject(bw, element, serializer)

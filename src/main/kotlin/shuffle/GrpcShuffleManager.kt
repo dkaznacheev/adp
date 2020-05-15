@@ -66,7 +66,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
                 .setShuffleId(shuffleId)
                 .build()
 
-        val tstparts = listOf(333333, 666666).map { ByteString.copyFrom(SerUtils.serialize(it)) }
+        System.err.println("awaiting distribution")
         val distribution = masterStub.sampleDistribution(request)
 
         partitionId.set(distribution.myPartitionId)
@@ -76,8 +76,12 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
                     .usePlaintext()
                     .build())
         })
+        System.err.println("processed distribution")
+        System.err.println("splitting block")
 
         splitToParts(distribution, shuffleDir, shuffleDir.resolve("block"), serializer, comparator)
+
+        System.err.println("block splitted")
     }
 
     suspend fun <T> splitToParts(distribution: Adp.Distribution,
@@ -88,6 +92,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
         withContext(Dispatchers.IO) {
             var blockId = 0
             val partLimits = distribution.partitionsList.map { SerUtils.deserialize(it.toByteArray()) as T }
+            System.err.println(partLimits)
             var currentPart = partLimits.first()
             var currentWriter = shuffleDir.resolve("part0").bufferedWriter()
 
@@ -125,6 +130,8 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
     }
 
     override fun readMerged(scope: CoroutineScope): ReceiveChannel<T> {
+        System.err.println("reading merged: awaiting")
+
         return scope.produce {
             val flows = stubs.get().map {
                 val partId = partitionId.get()
@@ -134,6 +141,8 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
                         .build()
                 it.shuffleRead(request)
             }.toList()
+
+            System.err.println("got flows")
 
             val channels = (1..flows.size).map { Channel<T>(1000) }
 
@@ -149,6 +158,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
             val pq = PriorityQueue<Pair<T, Int>>(pairComparator<T, Int>(comparator))
             for ((i, channel) in channels.withIndex()) {
                 channel.receiveOrNull()?.let {
+                    System.err.println("added $it from $i")
                     pq.add(it to i)
                 }
             }
