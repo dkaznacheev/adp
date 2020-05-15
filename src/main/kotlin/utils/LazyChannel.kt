@@ -13,5 +13,6 @@ class LazyChannel<T> {
     suspend fun set(t: T) {
         value = t
         ch.send(t)
+        ch.close()
     }
 }

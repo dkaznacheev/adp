@@ -38,13 +38,17 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
             .build())
 
     private val partitionId = LazyChannel<Int>()
-    private val blocks = LazyChannel<List<LazyChannel<File>>>()
+    //private val blocks = LazyChannel<List<LazyChannel<File>>>()
+    private val blocks = LazyChannel<List<File>>()
     private val stubs = LazyChannel<List<WorkerGrpcKt.WorkerCoroutineStub>>()
 
     fun blockFor(workerNum: Int): Flow<Adp.Value> {
         return flow {
-            val file = blocks.get()[workerNum].get()
+            System.err.println("awaiting part$workerNum")
+            val file = blocks.get()[workerNum]//.get()
+            System.err.println("got part$workerNum")
             for (line in file.bufferedReader().lines()) {
+                System.err.println("sent $line")
                 emit(Adp.Value.newBuilder().setValue(ByteString.copyFrom(line.toByteArray())).build())
             }
         }
@@ -70,7 +74,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
         val distribution = masterStub.sampleDistribution(request)
 
         partitionId.set(distribution.myPartitionId)
-        blocks.set((0 until distribution.partitionsList.size).map { LazyChannel<File>() })
+        //blocks.set((0 until distribution.partitionsList.size).map { LazyChannel<File>() })
         stubs.set(distribution.workersList.map {
             WorkerGrpcKt.WorkerCoroutineStub(ManagedChannelBuilder.forTarget(it)
                     .usePlaintext()
@@ -80,6 +84,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
         System.err.println("splitting block")
 
         splitToParts(distribution, shuffleDir, shuffleDir.resolve("block"), serializer, comparator)
+        blocks.set((0 until distribution.partitionsList.size).map { shuffleDir.resolve("part$it") })
 
         System.err.println("block splitted")
     }
@@ -106,8 +111,10 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
                     }
                     currentWriter.flush()
                     currentWriter.close()
-                    blocks.get()[blockId - 1].set(shuffleDir.resolve("part${blockId - 1}"))
+                    System.err.println("setting part${blockId - 1}")
+                    //blocks.get()[blockId - 1].set(shuffleDir.resolve("part${blockId - 1}"))
 
+                    System.err.println("set part${blockId - 1}")
                     currentWriter = shuffleDir.resolve("part$blockId").bufferedWriter()
                 }
 
@@ -116,7 +123,9 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
             }
             currentWriter.flush()
             currentWriter.close()
-            blocks.get()[blockId].set(shuffleDir.resolve("part$blockId"))
+            System.err.println("setting part$blockId")
+            //blocks.get()[blockId].set(shuffleDir.resolve("part$blockId"))
+            System.err.println("set part$blockId")
         }
     }
 
@@ -149,7 +158,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
             flows.zip(channels).forEach { (flow, channel) ->
                 launch {
                     flow.collect {
-                        channel.send(serializer.deserialize(String(it.toByteArray())))
+                        channel.send(serializer.deserialize(String(it.value.toByteArray())))
                     }
                     channel.close()
                 }

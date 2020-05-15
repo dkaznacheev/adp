@@ -54,12 +54,14 @@ abstract class ReduceByKeyRDDImpl<K, T>(val parent: RDDImpl<Pair<K, T>>,
         val shuffleManager = getShuffleManager(ctx, shuffleId)
 
         return scope.produce<Pair<K, T>> {
-            shuffleManager.writeAndBroadcast(scope, recChannel)
+            launch {
+                shuffleManager.writeAndBroadcast(scope, recChannel)
+                System.err.println("finished writing")
+            }
             val merged = shuffleManager.readMerged(scope)
             var currentPair: Pair<K, T>? = null
 
             for (pair in merged) {
-                println(pair)
                 if (currentPair == null) {
                     currentPair = pair
                 }
