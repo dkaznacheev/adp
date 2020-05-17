@@ -22,44 +22,44 @@ inline fun <reified K, reified V> RDD<Pair<K, V>>.reduceByKey(noinline comparato
     return ReduceByKeyRDD(this, comparator, serializer, f)
 }
 
+inline fun <reified T> RDD<T>.saveAsObject(name: String) {
+    master.execute(SaveAsObjectOperation(this, name, SerUtils.getSerializer(T::class)))
+}
+
+inline fun <reified T, reified R> RDD<T>.map(noinline f: suspend (T) -> R): RDD<R> {
+    return MappedRDD(this, f)
+}
+
+inline fun <reified T> RDD<T>.show() {
+    println(map { it.toString() }.reduce { a, b -> a + "\n" + b })
+}
+
+inline fun <reified T, reified R> RDD<T>.mapSync(noinline f: suspend (T) -> R): RDD<R> {
+    return MappedSyncRDD(this, f)
+}
+
+inline fun <reified T, reified R> RDD<T>.mapHTTP(noinline f: suspend HttpClient.(T) -> R): RDD<R> {
+    return HTTPMapRDD(this, f)
+}
+
+inline fun <reified T> RDD<T>.filter(noinline f: suspend (T) -> Boolean): RDD<T> {
+    return FilteredRDD(this, f)
+}
+
+inline fun <reified T> RDD<T>.reduce(noinline f: (T, T) -> T): T? {
+    return master.execute(ReduceOperation(this, f))
+}
+
+inline fun <reified T> RDD<T>.saveAsCSV(name: String) {
+    master.execute(SaveAsCsvOperation(this, name))
+}
+
+inline fun <reified T> RDD<T>.cache(): Int {
+    val cacheId = abs(hashCode())
+    return master.execute(CacheOperation(this, cacheId))
+}
+
 abstract class RDD<T>(val master: Master) {
-    fun <R> map(f: suspend (T) -> R): RDD<R> {
-        return MappedRDD(this, f)
-    }
-
-    fun <R> mapSync(f: suspend (T) -> R): RDD<R> {
-        return MappedSyncRDD(this, f)
-    }
-
-    fun <R> mapHTTP(f: suspend HttpClient.(T) -> R): RDD<R> {
-        return HTTPMapRDD(this, f)
-    }
-
-    fun filter(f: suspend (T) -> Boolean): RDD<T> {
-        return FilteredRDD(this, f)
-    }
-
-    fun reduce(f: (T, T) -> T): T? {
-        return master.execute(ReduceOperation(this, f))
-    }
-
-    inline fun <reified T> saveAsObject(name: String) {
-        master.execute(SaveAsObjectOperation(this, name, SerUtils.getSerializer(T::class)))
-    }
-
-    fun saveAsCSV(name: String) {
-        master.execute(SaveAsCsvOperation(this, name))
-    }
-
-    fun show() {
-        println(map { it.toString() }.reduce { a, b -> a + "\n" + b})
-    }
-
-    fun cache(): Int {
-        val cacheId = abs(hashCode())
-        return master.execute(CacheOperation(this, cacheId))
-    }
-
     abstract fun toImpl(): RDDImpl<T>
 }
 

@@ -179,8 +179,8 @@ fun reduceByKeyGrpcTest() {
             val parts = it.split(",")
             parts[0] to parts[1].toInt()
         }
-        .reduceByKey<String, Int> { a, b -> a + b }
-        .saveAsObject<Pair<String, Int>>("shuffled.txt")
+        .reduceByKey { a, b -> a + b }
+        .saveAsObject("shuffled.txt")
 }
 
 fun reduceGrpcFileTest() {
@@ -204,13 +204,21 @@ fun reduceHTTPTest() {
             .also { println(it) }
 }
 
+fun saveAsObjectInlineTest() {
+    val workers = File("workers.conf").readLines()
+    val master = GrpcMaster(8099, workers)
+    fileRdd<Int>(master,"numbers.txt")
+            .map { it.toString() }
+            .saveAsObject("file.txt")
+}
+
 fun main(args: Array<String>) {
     if (args.isNotEmpty() && args[0] == "worker") {
         Worker(args[1].toInt()).startRPC()
     } else {
         TestService(8085, 10L).start()
         measureTimeMillis {
-            reduceHTTPTest()
+            reduceByKeyGrpcTest()
         }.also { println(it) }
     }
 }
