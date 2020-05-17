@@ -18,16 +18,19 @@ class MappedRDDImpl<T, R>(val parent: RDDImpl<T>, val f: suspend (T) -> R): RDDI
         val channel = Channel<R>(MAX_CAP)
         val recChannel = parent.channel(scope, ctx)
         scope.launch {
-            val defs = mutableListOf<Deferred<*>>()
-            while(!recChannel.isClosedForReceive) {
-                val t = recChannel.receiveOrNull() ?: break
-                defs.add(async {
-                    channel.send(f(t))
-                })
-            }
-            defs.awaitAll()
+            (1..CONCURRENT_MAP_LIMIT).map {
+                async {
+                    for (t in recChannel) {
+                        channel.send(f(t))
+                    }
+                }
+            }.awaitAll()
             channel.close()
         }
         return channel
+    }
+
+    companion object {
+        const val CONCURRENT_MAP_LIMIT = 10
     }
 }
