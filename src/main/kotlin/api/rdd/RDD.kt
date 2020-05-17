@@ -6,6 +6,7 @@ import api.operations.CacheOperation
 import api.operations.ReduceOperation
 import api.operations.SaveAsCsvOperation
 import api.operations.SaveAsObjectOperation
+import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import utils.SerUtils
@@ -28,6 +29,10 @@ abstract class RDD<T>(val master: Master) {
 
     fun <R> mapSync(f: suspend (T) -> R): RDD<R> {
         return MappedSyncRDD(this, f)
+    }
+
+    fun <R> mapHTTP(f: suspend HttpClient.(T) -> R): RDD<R> {
+        return HTTPMapRDD(this, f)
     }
 
     fun filter(f: suspend (T) -> Boolean): RDD<T> {
