@@ -10,14 +10,14 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import kotlinx.coroutines.delay
 
-class TestService(val port: Int) {
+class TestService(val port: Int, val delay: Long) {
     private val server = embeddedServer(Netty, port) {
         routing {
             get("/test") {
                 call.respondText { "Hello from port $port" }
             }
             get("/echo") {
-                delay(1000L)
+                delay(delay)
                 call.respond(call.parameters["value"] ?: HttpStatusCode.NotAcceptable)
             }
         }
@@ -26,9 +26,4 @@ class TestService(val port: Int) {
     fun start() {
         server.start()
     }
-}
-
-fun main(args: Array<String>) {
-    val port = args[0].toInt()
-    TestService(port).start()
 }

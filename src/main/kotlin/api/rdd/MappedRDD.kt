@@ -1,5 +1,6 @@
 package api.rdd
 
+import api.CONCURRENT_MAP_LIMIT
 import worker.WorkerContext
 import api.MAX_CAP
 import kotlinx.coroutines.*
@@ -28,9 +29,5 @@ class MappedRDDImpl<T, R>(val parent: RDDImpl<T>, val f: suspend (T) -> R): RDDI
             channel.close()
         }
         return channel
-    }
-
-    companion object {
-        const val CONCURRENT_MAP_LIMIT = 10
     }
 }

@@ -1,5 +1,6 @@
 package api.rdd
 
+import api.CONCURRENT_MAP_LIMIT
 import worker.WorkerContext
 import api.MAX_CAP
 import io.ktor.client.HttpClient
@@ -28,11 +29,8 @@ class HTTPMapRDDImpl<T, R>(val parent: RDDImpl<T>, val f: suspend HttpClient.(T)
                 }
             }.awaitAll()
             channel.close()
+            client.close()
         }
         return channel
-    }
-
-    companion object {
-        const val CONCURRENT_MAP_LIMIT = 10
     }
 }

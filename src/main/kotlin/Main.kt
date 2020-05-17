@@ -7,9 +7,11 @@ import master.GrpcMaster
 import master.LocalMaster
 import master.MultiWorkerMaster
 import rowdata.ColumnDataType
+import testservice.TestService
 import utils.SerUtils
 import worker.Worker
 import java.io.File
+import kotlin.system.measureTimeMillis
 
 fun sertest() {
     val f: suspend (Int) -> Int = {
@@ -190,10 +192,50 @@ fun reduceGrpcFileTest() {
             .also { println(it) }
 }
 
+fun reduceHTTPTest() {
+    val workers = File("workers.conf").readLines()
+    val master = GrpcMaster(8099, workers)
+    fileRdd<Int>(master,"numbers.txt")
+            .mapHTTP {
+                val t = get<String>("http://localhost:8085/echo?value=$it")
+                t.length
+            }
+            .reduce { a, b -> a + b}
+            .also { println(it) }
+}
+
 fun main(args: Array<String>) {
     if (args.isNotEmpty() && args[0] == "worker") {
         Worker(args[1].toInt()).startRPC()
     } else {
-        reduceByKeyGrpcTest()
+        TestService(8085, 10L).start()
+        measureTimeMillis {
+            reduceHTTPTest()
+        }.also { println(it) }
     }
 }
+
+/*
+5 2484 1409
+10 3047 1393
+15 3531 1428
+20 3706 1288
+25 4478 1413
+30 5001 1352
+35 5518 1391
+40 5779 1354
+*/
+
+/*
+
+200 1520
+400 1671
+600 1817
+800 2084
+1000 2092
+1200 2602
+1400 2624
+1600 2821
+1800 2932
+2000 3199
+*/
