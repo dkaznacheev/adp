@@ -64,6 +64,10 @@ object SerUtils {
         }
     }
 
+    inline fun <reified T, reified U> getPairSerializer(): Serializer<Pair<T, U>> {
+        return PairSerializer(getSerializer<T>(), getSerializer<U>())
+    }
+
     inline fun <reified T> getSerializer(): Serializer<T> {
         return when(T::class) {
             Int::class -> IntSerializer() as Serializer<T>
@@ -90,7 +94,22 @@ object SerUtils {
         override fun deserialize(s: String): String {
             return s
         }
+    }
 
+    class PairSerializer<T, U>(private val s1: Serializer<T>,
+                               private val s2: Serializer<U>) : Serializer<Pair<T, U>> {
+        override fun serialize(o: Pair<T, U>): String {
+            return s1.serialize(o.first) + SEPARATOR + s2.serialize(o.second)
+        }
+
+        override fun deserialize(s: String): Pair<T, U> {
+            val parts = s.split(SEPARATOR)
+            return s1.deserialize(parts[0]) to s2.deserialize(parts[1])
+        }
+
+        companion object {
+            const val SEPARATOR = '\u200B'
+        }
     }
 
     class DefaultSerializer: Serializer<Any?> {
