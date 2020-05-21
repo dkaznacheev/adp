@@ -5,9 +5,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import master.GrpcMaster
 import master.LocalMaster
-import master.MultiWorkerMaster
 import rowdata.ColumnDataType
-import testservice.TestService
 import utils.SerUtils
 import worker.Worker
 import java.io.File
@@ -27,7 +25,7 @@ fun sertest() {
 }
 
 fun rddTestAsync() {
-    val master = MultiWorkerMaster(listOf(8080, 8081))
+    val master = LocalMaster()
     val res = StringRDD(master, "lines.txt").map {
         HttpClient().get<String>(it)
     }.map {
@@ -39,7 +37,7 @@ fun rddTestAsync() {
 }
 
 fun rddTestAsync2() {
-    val master = MultiWorkerMaster(listOf(8080, 8081))
+    val master = LocalMaster()
     StringRDD(master, "lines.txt").map {
         HttpClient().get<String>(it)
     }.map{
@@ -88,7 +86,7 @@ fun reduceByKeyLocalTest() {
         types = listOf(ColumnDataType.STRING, ColumnDataType.INT)
     ).map {
         it.getString("col0")!! to it.getInt("col1")!!
-    }.reduceByKeyLegacy { a, b -> a + b}
+    }.reduceByKey { a, b -> a + b}
         .map { it.toString() }
         .reduce { a, b -> a + b }
         .also { println(it) }
@@ -106,22 +104,8 @@ fun filterLocal() {
     }.show()
 }
 
-
-fun reduceByKeyMultiNodeTest() {
-    val master = MultiWorkerMaster(listOf(8080, 8081))
-    CsvRDD(
-        master,
-        "tmp.csv",
-        true,
-        types = listOf(ColumnDataType.STRING, ColumnDataType.INT)
-    ).map {
-        it.getString("col0")!! to it.getInt("col1")!!
-    }.reduceByKeyLegacy { a, b -> a + b}
-        .show()
-}
-
 fun cacheMultiNodeTest() {
-    val master = MultiWorkerMaster(listOf(8080, 8081))
+    val master = LocalMaster()
     val id = CsvRDD(
         master,
         "tmp.csv",
@@ -134,7 +118,7 @@ fun cacheMultiNodeTest() {
 }
 
 fun serviceTest() {
-    val master = MultiWorkerMaster(listOf(8080, 8081))
+    val master = LocalMaster()
     CsvRDD(
         master,
         "tmp.csv",
@@ -148,7 +132,7 @@ fun serviceTest() {
 }
 
 fun mapSyncTest() {
-    val master = MultiWorkerMaster(listOf(8080, 8081))
+    val master = LocalMaster()
     CsvRDD(
         master,
         "tmp.csv",
@@ -222,28 +206,3 @@ fun main(args: Array<String>) {
         }.also { println(it) }
     }
 }
-
-/*
-5 2484 1409
-10 3047 1393
-15 3531 1428
-20 3706 1288
-25 4478 1413
-30 5001 1352
-35 5518 1391
-40 5779 1354
-*/
-
-/*
-
-200 1520
-400 1671
-600 1817
-800 2084
-1000 2092
-1200 2602
-1400 2624
-1600 2821
-1800 2932
-2000 3199
-*/

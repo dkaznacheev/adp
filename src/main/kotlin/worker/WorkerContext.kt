@@ -1,10 +1,8 @@
 package worker
 
 import shuffle.GrpcShuffleManager
-import shuffle.LegacyHashShuffleManager
 
 class WorkerContext(
-        val shuffleManager: LegacyHashShuffleManager,
         val shuffleManagers: MutableMap<Int, GrpcShuffleManager<*>>,
         val cache: CacheManager) {
 
@@ -16,7 +14,7 @@ class WorkerContext(
 
     companion object {
         fun stub(): WorkerContext {
-            return WorkerContext(LegacyHashShuffleManager(-1, listOf()),
+            return WorkerContext(
             mutableMapOf(),
             CacheManager(100))
         }

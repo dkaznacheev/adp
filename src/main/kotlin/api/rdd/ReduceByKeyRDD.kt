@@ -61,14 +61,14 @@ abstract class ReduceByKeyRDDImpl<K, T>(val parent: RDDImpl<Pair<K, T>>,
             var currentPair: Pair<K, T>? = null
 
             for (pair in merged) {
-                if (currentPair == null) {
-                    currentPair = pair
+                currentPair = if (currentPair == null) {
+                    pair
                 } else {
                     if (currentPair.first != pair.first) {
                         send(currentPair)
-                        currentPair = pair
+                        pair
                     } else {
-                        currentPair = pair.first to f(currentPair.second, pair.second)
+                        pair.first to f(currentPair.second, pair.second)
                     }
                 }
             }

@@ -5,7 +5,6 @@ import api.rdd.LocalReduceByKeyRDDImpl
 import api.rdd.RDDImpl
 import kotlinx.coroutines.runBlocking
 import worker.CacheManager
-import shuffle.LegacyHashShuffleManager
 import utils.SerUtils
 import worker.WorkerContext
 
@@ -15,7 +14,6 @@ class LocalMaster: Master {
             op.toImpl().execute(
                     this,
                     WorkerContext(
-                            LegacyHashShuffleManager(0, listOf()),
                             mutableMapOf(),
                             CacheManager(100)))
         }
