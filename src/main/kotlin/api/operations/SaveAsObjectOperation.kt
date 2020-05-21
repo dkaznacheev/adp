@@ -43,14 +43,5 @@ class SaveAsObjectOperationImpl<T>(rdd: RDDImpl<T>,
 
     private suspend fun writeToFile(scope: CoroutineScope, recChannel: ReceiveChannel<T>, outFile: File) {
         serializer.writeToFile(scope, recChannel, outFile)
-//        withContext(Dispatchers.IO) {
-//            val writer = outFile.bufferedWriter()
-//            recChannel.consumeEach { o ->
-//                writer.write(serializer.serialize(o))
-//                writer.newLine()
-//            }
-//            writer.flush()
-//            writer.close()
-//        }
     }
 }

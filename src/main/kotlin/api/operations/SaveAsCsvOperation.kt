@@ -13,6 +13,7 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.channels.reduce
 import kotlinx.coroutines.withContext
+import utils.SerUtils
 import java.io.File
 
 class SaveAsCsvOperation<T>(rdd: RDD<T>, val name: String): ParallelOperation<T, Byte>(rdd) {
@@ -28,7 +29,7 @@ class SaveAsCsvOperation<T>(rdd: RDD<T>, val name: String): ParallelOperation<T,
     }
 }
 
-class SaveAsCsvOperationImpl<T>(rdd: RDDImpl<T>, val name: String): ParallelOperationImpl<T, Byte>(rdd) {
+class SaveAsCsvOperationImpl<T>(rdd: RDDImpl<T>, val name: String): ParallelOperationImpl<T, Byte>(rdd, SerUtils.getSerializer<Byte>()) {
     @KtorExperimentalAPI
     override suspend fun execute(scope: CoroutineScope, ctx: WorkerContext): Byte {
         val recChannel = rdd.channel(scope, ctx)

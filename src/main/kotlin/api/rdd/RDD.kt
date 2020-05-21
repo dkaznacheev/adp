@@ -48,7 +48,7 @@ inline fun <reified T> RDD<T>.filter(noinline f: suspend (T) -> Boolean): RDD<T>
 }
 
 inline fun <reified T> RDD<T>.reduce(noinline f: (T, T) -> T): T? {
-    return master.execute(ReduceOperation(this, f))
+    return master.execute(ReduceOperation(this, SerUtils.kryoSerializer(kryo), f))
 }
 
 inline fun <reified T> RDD<T>.saveAsCSV(name: String) {
@@ -57,7 +57,7 @@ inline fun <reified T> RDD<T>.saveAsCSV(name: String) {
 
 inline fun <reified T> RDD<T>.cache(): Int {
     val cacheId = abs(hashCode())
-    return master.execute(CacheOperation(this, cacheId))
+    return master.execute(CacheOperation(this, SerUtils.kryoSerializer(kryo), cacheId))
 }
 
 abstract class RDD<T>(val master: Master,

@@ -17,11 +17,11 @@ abstract class ParallelOperation<T, R> (val rdd: RDD<T>) {
     }
 }
 
-abstract class ParallelOperationImpl<T, R>(val rdd: RDDImpl<T>): Serializable {
+abstract class ParallelOperationImpl<T, R>(val rdd: RDDImpl<T>, val serializer: SerUtils.Serializer<R>): Serializable {
     abstract suspend fun execute(scope: CoroutineScope, ctx: WorkerContext) : R
 
     open suspend fun executeSerializable(scope: CoroutineScope, ctx: WorkerContext): ByteArray {
-        val result = execute(scope, ctx) as Serializable
-        return SerUtils.serialize(result)
+        val result = execute(scope, ctx)
+        return serializer.serialize(result).toByteArray() // TODO CHANGE SERIALIZER API
     }
 }
