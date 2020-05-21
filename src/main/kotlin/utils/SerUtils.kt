@@ -5,7 +5,6 @@ import com.esotericsoftware.kryo.io.Input
 import com.esotericsoftware.kryo.io.Output
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.withContext
@@ -51,8 +50,10 @@ object SerUtils {
     abstract class Serializer<T>: Serializable {
         abstract fun serialize(o: T): String
         abstract fun deserialize(s: String): T
+        abstract fun readFileSync(file: File): Iterator<T>
         abstract fun readFile(file: File, scope: CoroutineScope): ReceiveChannel<T>
-        abstract suspend fun writeToFile(scope: CoroutineScope, recChannel: ReceiveChannel<T>, outFile: File)
+        abstract suspend fun writeToFile(recChannel: ReceiveChannel<T>, outFile: File)
+        abstract fun writeToFile(elements: Iterable<T>, outFile: File)
     }
 
     fun getSerializer(c: KClass<*>): Serializer<Any?> {
@@ -110,7 +111,17 @@ object SerUtils {
             }
         }
 
-        override suspend fun writeToFile(scope: CoroutineScope, recChannel: ReceiveChannel<T>, outFile: File) {
+        override fun readFileSync(file: File): Iterator<T> {
+            return iterator {
+                val input = Input(FileInputStream(file))
+                while(!input.eof()) {
+                    yield(kryo.readObject(input, clazz))
+                }
+                input.close()
+            }
+        }
+
+        override suspend fun writeToFile(recChannel: ReceiveChannel<T>, outFile: File) {
             withContext(Dispatchers.IO) {
                 val output = Output(FileOutputStream(outFile))
                 for (value in recChannel) {
@@ -118,6 +129,14 @@ object SerUtils {
                 }
                 output.close()
             }
+        }
+
+        override fun writeToFile(elements: Iterable<T>, outFile: File) {
+            val output = Output(FileOutputStream(outFile))
+            for (value in elements) {
+                kryo.writeObject(output, value)
+            }
+            output.close()
         }
 
         override fun deserialize(s: String): T {
@@ -146,13 +165,29 @@ object SerUtils {
             }
         }
 
-        override suspend fun writeToFile(scope: CoroutineScope, recChannel: ReceiveChannel<Any?>, outFile: File) {
+        override fun readFileSync(file: File): Iterator<Any?> {
+            return iterator {
+                for (line in file.bufferedReader().lineSequence()) {
+                    yield(unwrap(line))
+                }
+            }
+        }
+
+        override suspend fun writeToFile(recChannel: ReceiveChannel<Any?>, outFile: File) {
             withContext(Dispatchers.IO) {
                 val writer = outFile.bufferedWriter()
                 for (v in recChannel) {
                     writer.write(wrap(v))
                     writer.newLine()
                 }
+            }
+        }
+
+        override fun writeToFile(elements: Iterable<Any?>, outFile: File) {
+            val writer = outFile.bufferedWriter()
+            for (v in elements) {
+                writer.write(wrap(v))
+                writer.newLine()
             }
         }
     }

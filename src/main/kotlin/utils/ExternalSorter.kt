@@ -8,6 +8,65 @@ import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.withContext
 import java.io.BufferedWriter
 import java.io.File
+import java.util.*
+import kotlin.Comparator
+import kotlin.NoSuchElementException
+
+class PeekIterator<T>(val iterator: Iterator<T>): Iterator<T> {
+    var t: Optional<T> = Optional.empty()
+
+    override fun hasNext(): Boolean {
+        if (t.isPresent) {
+            return true
+        }
+        if (iterator.hasNext()) {
+            t = Optional.of(iterator.next())
+            return true
+        }
+        return false
+    }
+
+    override fun next(): T {
+        hasNext()
+        val result = t.orElseGet {
+            throw NoSuchElementException()
+        }
+        t = Optional.empty()
+        return result
+    }
+
+    fun peek(): T {
+        return t.get()
+    }
+}
+
+class MergedIterator<T>(
+        leftIterator: Iterator<T>,
+        rightIterator: Iterator<T>,
+        private val comparator: Comparator<T>): Iterator<T> {
+
+    private val left = PeekIterator(leftIterator)
+    private val right = PeekIterator(rightIterator)
+
+    override fun hasNext(): Boolean {
+        return left.hasNext() || right.hasNext()
+    }
+
+    override fun next(): T {
+        if (!right.hasNext()) {
+            return left.next()
+        }
+        if (!left.hasNext()) {
+            return right.next()
+        }
+
+        return if (comparator.compare(left.peek(), right.peek()) < 0) {
+            left.next()
+        } else {
+            right.next()
+        }
+    }
+}
 
 class ExternalSorter<T>(private val shuffleDir: File,
                         private val comparator: Comparator<T>,
@@ -73,33 +132,8 @@ class ExternalSorter<T>(private val shuffleDir: File,
             val rightLines = rightFile.inputStream().bufferedReader().lineSequence().iterator()
 
             val outFile = shuffleDir.resolve("shuffle$left-$right")
-            val bw = outFile.bufferedWriter()
 
-            var leftItem: T? = null
-            var rightItem: T? = null
-            while (leftLines.hasNext() || rightLines.hasNext()) {
-                if (leftLines.hasNext() && leftItem == null) {
-                    leftItem = serializer.deserialize(leftLines.next())
-                }
-                if (rightLines.hasNext() && rightItem == null) {
-                    rightItem = serializer.deserialize(rightLines.next())
-                }
-
-                if (rightItem == null) {
-                    writeObject(bw, leftItem!!, serializer)
-                    leftItem = null
-                } else {
-                    if (leftItem == null || comparator.compare(leftItem, rightItem) >= 0) {
-                        writeObject(bw, rightItem, serializer)
-                        rightItem = null
-                    } else {
-                        writeObject(bw, leftItem, serializer)
-                        leftItem = null
-                    }
-                }
-            }
-            bw.flush()
-            bw.close()
+            serializer.writeToFile(MergedIterator(left, right, comparator))
 
             leftFile.delete()
             rightFile.delete()
@@ -112,13 +146,7 @@ class ExternalSorter<T>(private val shuffleDir: File,
 
         buffer.sortWith(comparator)
         withContext(Dispatchers.IO) {
-            System.err.println("dumping $outFile")
-            val bw = outFile.outputStream().bufferedWriter()
-            for (element in buffer) {
-                writeObject(bw, element, serializer)
-            }
-            bw.flush()
-            bw.close()
+            serializer.writeToFile(buffer, outFile)
         }
         buffer.clear()
     }

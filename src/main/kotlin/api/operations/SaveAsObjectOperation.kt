@@ -6,17 +6,14 @@ import api.rdd.RDD
 import api.rdd.RDDImpl
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.ReceiveChannel
-import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.channels.reduce
-import kotlinx.coroutines.withContext
 import utils.SerUtils
 import java.io.File
 
 class SaveAsObjectOperation<T>(rdd: RDD<T>,
                                val name: String,
-                               val serializer: SerUtils.Serializer<Any?>): ParallelOperation<T, Byte>(rdd) {
+                               val serializer: SerUtils.Serializer<T>): ParallelOperation<T, Byte>(rdd) {
     override fun toImpl(): ParallelOperationImpl<T, Byte> {
         return SaveAsObjectOperationImpl(
             rdd.toImpl(),
@@ -32,7 +29,8 @@ class SaveAsObjectOperation<T>(rdd: RDD<T>,
 
 class SaveAsObjectOperationImpl<T>(rdd: RDDImpl<T>,
                                    val name: String,
-                                   val serializer: SerUtils.Serializer<Any?>): ParallelOperationImpl<T, Byte>(rdd) {
+                                   val objectSerializer: SerUtils.Serializer<T>):
+        ParallelOperationImpl<T, Byte>(rdd, SerUtils.getSerializer<Byte>()) {
     @KtorExperimentalAPI
     override suspend fun execute(scope: CoroutineScope, ctx: WorkerContext): Byte {
         val recChannel = rdd.channel(scope, ctx)
@@ -42,6 +40,6 @@ class SaveAsObjectOperationImpl<T>(rdd: RDDImpl<T>,
     }
 
     private suspend fun writeToFile(scope: CoroutineScope, recChannel: ReceiveChannel<T>, outFile: File) {
-        serializer.writeToFile(scope, recChannel, outFile)
+        objectSerializer.writeToFile(recChannel, outFile)
     }
 }
