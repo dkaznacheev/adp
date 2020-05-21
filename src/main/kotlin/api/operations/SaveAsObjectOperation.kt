@@ -30,7 +30,7 @@ class SaveAsObjectOperation<T>(rdd: RDD<T>,
 class SaveAsObjectOperationImpl<T>(rdd: RDDImpl<T>,
                                    val name: String,
                                    val objectSerializer: SerUtils.Serializer<T>):
-        ParallelOperationImpl<T, Byte>(rdd, SerUtils.getSerializer<Byte>()) {
+        ParallelOperationImpl<T, Byte>(rdd, SerUtils.kryoSerializer<Byte>()) {
     @KtorExperimentalAPI
     override suspend fun execute(scope: CoroutineScope, ctx: WorkerContext): Byte {
         val recChannel = rdd.channel(scope, ctx)

@@ -29,7 +29,7 @@ class SaveAsCsvOperation<T>(rdd: RDD<T>, val name: String): ParallelOperation<T,
     }
 }
 
-class SaveAsCsvOperationImpl<T>(rdd: RDDImpl<T>, val name: String): ParallelOperationImpl<T, Byte>(rdd, SerUtils.getSerializer<Byte>()) {
+class SaveAsCsvOperationImpl<T>(rdd: RDDImpl<T>, val name: String): ParallelOperationImpl<T, Byte>(rdd, SerUtils.kryoSerializer<Byte>()) {
     @KtorExperimentalAPI
     override suspend fun execute(scope: CoroutineScope, ctx: WorkerContext): Byte {
         val recChannel = rdd.channel(scope, ctx)

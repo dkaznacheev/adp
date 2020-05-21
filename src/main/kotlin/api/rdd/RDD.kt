@@ -20,7 +20,7 @@ inline fun <reified K, reified V> RDD<Pair<K, V>>.reduceByKey(noinline comparato
 }
 
 inline fun <reified T> RDD<T>.saveAsObject(name: String) {
-    master.execute(SaveAsObjectOperation(this, name, SerUtils.getSerializer<T>()))
+    master.execute(SaveAsObjectOperation(this, name, SerUtils.kryoSerializer<T>()))
 }
 
 inline fun <reified T> RDD<T>.saveAsObject(serializer: SerUtils.Serializer<T>, name: String) {

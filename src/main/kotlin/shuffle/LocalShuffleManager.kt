@@ -29,9 +29,8 @@ class LocalShuffleManager<T>(val ctx: WorkerContext,
         return scope.produce {
             waitChannel.receive()
             val block = shuffleDir.resolve("block")
-            for (line in block.bufferedReader().lines()) {
-                send(serializer.deserialize(line))
-            }
+            for (element in serializer.readFile(block, this))
+                send(element)
         }
     }
 }

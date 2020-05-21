@@ -87,11 +87,6 @@ class ExternalSorter<T>(private val shuffleDir: File,
         shuffleDir.resolve("shuffle0-$blocksNumber").renameTo(shuffleDir.resolve("block"))
     }
 
-    private fun <T> writeObject(bw: BufferedWriter, o: T, serializer: SerUtils.Serializer<T>) {
-        bw.write(serializer.serialize(o))
-        bw.newLine()
-    }
-
     private suspend fun mergeBlocks(scope: CoroutineScope,
                                     left: Int,
                                     right: Int){

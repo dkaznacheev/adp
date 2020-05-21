@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.withContext
 import org.apache.commons.lang3.SerializationUtils
 import java.io.*
@@ -48,28 +49,17 @@ object SerUtils {
     }
 
     abstract class Serializer<T>: Serializable {
-        abstract fun serialize(o: T): String
-        abstract fun deserialize(s: String): T
+        abstract fun serialize(o: T): ByteArray
+        abstract fun deserialize(s: ByteArray): T
         abstract fun readFileSync(file: File): Iterator<T>
         abstract fun readFile(file: File, scope: CoroutineScope): ReceiveChannel<T>
+        abstract suspend fun readFileFlow(file: File, flowCollector: FlowCollector<T>)
         abstract suspend fun writeToFile(recChannel: ReceiveChannel<T>, outFile: File)
         abstract fun writeToFile(elements: Iterator<T>, outFile: File)
     }
 
-    fun getSerializer(c: KClass<*>): Serializer<Any?> {
-        return when(c) {
-            else -> DefaultSerializer()
-        }
-    }
-
     inline fun <reified T, reified U> getPairSerializer(): Serializer<Pair<T, U>> {
-        return DefaultSerializer() as Serializer<Pair<T, U>>//PairSerializer(getSerializer<T>(), getSerializer<U>())
-    }
-
-    inline fun <reified T> getSerializer(): Serializer<T> {
-        return when(T::class) {
-            else -> DefaultSerializer() as Serializer<T>
-        }
+        return KryoSerializer(Pair::class.java) as Serializer<Pair<T, U>> // TODO FIX
     }
 
     inline fun <reified T> kryoSerializer(kryo: Kryo = Kryo()): KryoSerializer<T> {
@@ -77,15 +67,7 @@ object SerUtils {
     }
 
     class KryoSerializer<T>(val clazz: Class<T>, val kryo: Kryo = Kryo()): Serializer<T>() {
-        override fun serialize(o: T): String {
-            val ba = ByteArrayOutputStream()
-            val output = Output(ba)
-            kryo.writeObject(output, o)
-            output.flush()
-            return ba.toByteArray().toString()
-        }
-
-        fun serializeBA(o: T): ByteArray {
+        override fun serialize(o: T): ByteArray {
             val ba = ByteArrayOutputStream()
             val output = Output(ba)
             kryo.writeObject(output, o)
@@ -93,7 +75,7 @@ object SerUtils {
             return ba.toByteArray()
         }
 
-        fun deserializeBA(s: ByteArray): T {
+        override fun deserialize(s: ByteArray): T {
             val ba = ByteArrayInputStream(s)
             val input = Input(ba)
             return kryo.readObject(input, clazz)
@@ -139,56 +121,12 @@ object SerUtils {
             output.close()
         }
 
-        override fun deserialize(s: String): T {
-            val ba = ByteArrayInputStream(s.toByteArray())
-            val input = Input(ba)
-            return kryo.readObject(input, clazz)
-        }
-    }
-
-    class DefaultSerializer: Serializer<Any?>() {
-        override fun serialize(o: Any?): String {
-            return wrap(o)
-        }
-
-        override fun deserialize(s: String): Any? {
-            return unwrap(s)
-        }
-
-        override fun readFile(file: File, scope: CoroutineScope): ReceiveChannel<Any?> {
-            return scope.produce {
-                withContext(Dispatchers.IO) {
-                    for (line in file.bufferedReader().lineSequence()) {
-                        send(unwrap(line))
-                    }
-                }
+        override suspend fun readFileFlow(file: File, flowCollector: FlowCollector<T>) {
+            val input = Input(FileInputStream(file))
+            while(!input.eof()) {
+                flowCollector.emit(kryo.readObject(input, clazz))
             }
-        }
-
-        override fun readFileSync(file: File): Iterator<Any?> {
-            return iterator {
-                for (line in file.bufferedReader().lineSequence()) {
-                    yield(unwrap(line))
-                }
-            }
-        }
-
-        override suspend fun writeToFile(recChannel: ReceiveChannel<Any?>, outFile: File) {
-            withContext(Dispatchers.IO) {
-                val writer = outFile.bufferedWriter()
-                for (v in recChannel) {
-                    writer.write(wrap(v))
-                    writer.newLine()
-                }
-            }
-        }
-
-        override fun writeToFile(elements: Iterator<Any?>, outFile: File) {
-            val writer = outFile.bufferedWriter()
-            for (v in elements) {
-                writer.write(wrap(v))
-                writer.newLine()
-            }
+            input.close()
         }
     }
 }

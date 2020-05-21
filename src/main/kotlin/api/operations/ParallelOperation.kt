@@ -22,6 +22,6 @@ abstract class ParallelOperationImpl<T, R>(val rdd: RDDImpl<T>, val serializer: 
 
     open suspend fun executeSerializable(scope: CoroutineScope, ctx: WorkerContext): ByteArray {
         val result = execute(scope, ctx)
-        return serializer.serialize(result).toByteArray() // TODO CHANGE SERIALIZER API
+        return serializer.serialize(result)
     }
 }

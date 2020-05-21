@@ -13,6 +13,7 @@ import kotlinx.coroutines.channels.receiveOrNull
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import utils.ExternalSorter
 import utils.LazyChannel
 import utils.SerUtils
@@ -38,7 +39,6 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
             .build())
 
     private val partitionId = LazyChannel<Int>()
-    //private val blocks = LazyChannel<List<LazyChannel<File>>>()
     private val blocks = LazyChannel<List<File>>()
     private val stubs = LazyChannel<List<WorkerGrpcKt.WorkerCoroutineStub>>()
 
@@ -46,12 +46,12 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
         System.err.println("got request for $workerNum")
         return flow {
             System.err.println("awaiting part$workerNum")
-            val file = blocks.get()[workerNum]//.get()
-            System.err.println("got part$workerNum")
-            for (line in file.bufferedReader().lines()) {
-                System.err.println("sent $line")
-                emit(Adp.Value.newBuilder().setValue(ByteString.copyFrom(line.toByteArray())).build())
-            }
+            val file = blocks.get()[workerNum]
+            serializer.readFileFlow(file, this)
+        }.map {
+            Adp.Value.newBuilder()
+                    .setValue(ByteString.copyFrom(serializer.serialize(it)))
+                    .build()
         }
     }
 
@@ -105,9 +105,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
             var currentPart = partLimits.first()
             var currentWriter = shuffleDir.resolve("part0").bufferedWriter()
 
-            for (line in inFile.bufferedReader().lines()) {
-                val v = serializer.deserialize(line)
-
+            for (v in serializer.readFileSync(inFile)) {
                 if (blockId < partLimits.size && comparator.compare(v, currentPart) >= 0) {
                     blockId++
                     if (blockId < partLimits.size) {
@@ -116,7 +114,6 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
                     currentWriter.flush()
                     currentWriter.close()
                     System.err.println("setting part${blockId - 1}")
-                    //blocks.get()[blockId - 1].set(shuffleDir.resolve("part${blockId - 1}"))
 
                     System.err.println("set part${blockId - 1}")
                     currentWriter = shuffleDir.resolve("part$blockId").bufferedWriter()
@@ -135,10 +132,9 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
 
     fun getSample(file: File): List<ByteString> {
         val random = Random(System.currentTimeMillis())
-        return file.bufferedReader().lines()
+        return serializer.readFileSync(file).asSequence()
                 .filter { random.nextDouble(0.0, 1.0) < SAMPLE_RATE }
-                .map { SerUtils.serialize(serializer.deserialize(it)) }
-                .map { ByteString.copyFrom(it) }
+                .map { ByteString.copyFrom(serializer.serialize(it)) }
                 .toList()
     }
 
@@ -159,7 +155,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
 
             val channels = flows.map { flow ->
                 produce {
-                    flow.collect { send(serializer.deserialize(String(it.value.toByteArray()))) }
+                    flow.collect { send(serializer.deserialize(it.value.toByteArray())) }
                 }
             }
 
