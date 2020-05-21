@@ -1,9 +1,14 @@
-import kotlinx.coroutines.channels.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.channels.produce
+import kotlinx.coroutines.channels.toList
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.util.*
+import kotlin.Comparator
+
 
 fun main() {
     val flows = (0..4).map { n ->
@@ -14,17 +19,13 @@ fun main() {
     }
 
     runBlocking {
-        val channels = (1..flows.size).map { Channel<Pair<Int, Int>>(100) }
-        flows.zip(channels).forEach { (flow, channel) ->
-            launch {
-                flow.collect {
-                    channel.send(it % 5 to it)
-                }
-                channel.close()
+        val channels = flows.map { flow ->
+            produce {
+                flow.collect { send(it) }
             }
         }
 
-        val pq = PriorityQueue<Pair<Pair<Int, Int>, Int>>(Comparator { p0, p1 -> p0.first.first - p1.first.first })
+        val pq = PriorityQueue<Pair<Int, Int>>(Comparator { p0, p1 -> p0.first - p1.first })
         for ((i, channel) in channels.withIndex()) {
             pq.add(channel.receive() to i)
         }
@@ -37,22 +38,24 @@ fun main() {
             }
         }
 
-        val c2 = produce {
-            var currentPair: Pair<Int, Int>? = null
-            for (pair in c) {
-                if (currentPair == null) {
-                    currentPair = pair
-                }
-                if (currentPair.first != pair.first) {
-                    send(currentPair)
-                    currentPair = pair
-                } else {
-                    currentPair = pair.first to currentPair.second + pair.second
-                }
-            }
-            if (currentPair != null) {
-                send(currentPair)
-            }
-        }.toList().also { println(it) }
+        c.consumeEach { println(it) }
+
+//        val c2 = produce {
+//            var currentPair: Pair<Int, Int>? = null
+//            for (pair in c) {
+//                if (currentPair == null) {
+//                    currentPair = pair
+//                }
+//                if (currentPair.first != pair.first) {
+//                    send(currentPair)
+//                    currentPair = pair
+//                } else {
+//                    currentPair = pair.first to currentPair.second + pair.second
+//                }
+//            }
+//            if (currentPair != null) {
+//                send(currentPair)
+//            }
+//        }.toList().also { println(it) }
     }
 }

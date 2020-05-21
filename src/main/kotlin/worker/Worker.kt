@@ -94,6 +94,7 @@ class Worker(port: Int) {
                     error(e)
                 }
             }
+            println("finished op with $result")
             return toGrpcValue(result)
         }
 

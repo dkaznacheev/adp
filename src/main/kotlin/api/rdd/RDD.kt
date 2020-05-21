@@ -26,6 +26,10 @@ inline fun <reified T> RDD<T>.saveAsObject(name: String) {
     master.execute(SaveAsObjectOperation(this, name, SerUtils.getSerializer(T::class)))
 }
 
+inline fun <reified T> RDD<T>.saveAsObject(serializer: SerUtils.Serializer<T>, name: String) {
+    master.execute(SaveAsObjectOperation(this, name, serializer as SerUtils.Serializer<Any?>))
+}
+
 inline fun <reified T, reified R> RDD<T>.map(noinline f: suspend (T) -> R): RDD<R> {
     return MappedRDD(this, f)
 }

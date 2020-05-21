@@ -43,6 +43,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
     private val stubs = LazyChannel<List<WorkerGrpcKt.WorkerCoroutineStub>>()
 
     fun blockFor(workerNum: Int): Flow<Adp.Value> {
+        System.err.println("got request for $workerNum")
         return flow {
             System.err.println("awaiting part$workerNum")
             val file = blocks.get()[workerNum]//.get()
@@ -74,6 +75,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
         val distribution = masterStub.sampleDistribution(request)
 
         partitionId.set(distribution.myPartitionId)
+
         //blocks.set((0 until distribution.partitionsList.size).map { LazyChannel<File>() })
         stubs.set(distribution.workersList.map {
             WorkerGrpcKt.WorkerCoroutineStub(ManagedChannelBuilder.forTarget(it)
@@ -83,8 +85,10 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
         System.err.println("processed distribution")
         System.err.println("splitting block")
 
+
         splitToParts(distribution, shuffleDir, shuffleDir.resolve("block"), serializer, comparator)
-        blocks.set((0 until distribution.partitionsList.size).map { shuffleDir.resolve("part$it") })
+        val b = (0..distribution.partitionsList.size).map { shuffleDir.resolve("part$it") }
+        blocks.set(b)
 
         System.err.println("block splitted")
     }
@@ -153,21 +157,15 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
 
             System.err.println("got flows")
 
-            val channels = (1..flows.size).map { Channel<T>(1000) }
-
-            flows.zip(channels).forEach { (flow, channel) ->
-                launch {
-                    flow.collect {
-                        channel.send(serializer.deserialize(String(it.value.toByteArray())))
-                    }
-                    channel.close()
+            val channels = flows.map { flow ->
+                produce {
+                    flow.collect { send(serializer.deserialize(String(it.value.toByteArray()))) }
                 }
             }
 
             val pq = PriorityQueue<Pair<T, Int>>(pairComparator<T, Int>(comparator))
             for ((i, channel) in channels.withIndex()) {
                 channel.receiveOrNull()?.let {
-                    System.err.println("added $it from $i")
                     pq.add(it to i)
                 }
             }
@@ -175,6 +173,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
             while (!pq.isEmpty()) {
                 val (v, i) = pq.poll()
                 channels[i].receiveOrNull()?.also { pq.add(it to i) }
+                println("polled $v")
                 send(v)
             }
         }

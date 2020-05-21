@@ -175,12 +175,12 @@ fun reduceByKeyGrpcTest() {
     val workers = File("workers.conf").readLines()
     val master = GrpcMaster(8099, workers)
     fileRdd<String>(master, "tmp.csv")
-        .mapSync {
+        .map {
             val parts = it.split(",")
             parts[0] to parts[1].toInt()
         }
         .reduceByKey { a, b -> a + b }
-        .saveAsObject("shuffled.txt")
+        .saveAsObject(SerUtils.getPairSerializer<String, Int>(),"shuffled.txt")
 }
 
 fun reduceGrpcFileTest() {
@@ -216,7 +216,7 @@ fun main(args: Array<String>) {
     if (args.isNotEmpty() && args[0] == "worker") {
         Worker(args[1].toInt()).startRPC()
     } else {
-        TestService(8085, 10L).start()
+        //TestService(8085, 10L).start()
         measureTimeMillis {
             reduceByKeyGrpcTest()
         }.also { println(it) }
