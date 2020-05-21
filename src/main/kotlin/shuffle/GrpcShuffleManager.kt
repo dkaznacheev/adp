@@ -173,7 +173,6 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
             while (!pq.isEmpty()) {
                 val (v, i) = pq.poll()
                 channels[i].receiveOrNull()?.also { pq.add(it to i) }
-                println("polled $v")
                 send(v)
             }
         }

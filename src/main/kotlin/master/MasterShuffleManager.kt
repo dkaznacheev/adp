@@ -30,13 +30,9 @@ class MasterShuffleManager<T>(val shuffleId: Int,
 
                 distributions.sortWith(comparator)
                 val rangeSize = distributions.size / (workers.size)
-//                val finalDistribution = distributions
-//                        .filterIndexed { i, _ -> i % rangeSize == 1 }
-//                        .take(workers.size - 1)
-//                        .toList()
                 val finalDistribution = distributions
-                        .drop(distributions.size / 2)
-                        .take(1)
+                        .filterIndexed { i, _ -> i % rangeSize == 1 }
+                        .take(workers.size - 1)
                         .toList()
                 finalDistribution.map { ByteString.copyFrom(SerUtils.serialize(it)) }
             }
