@@ -1,11 +1,9 @@
 package utils
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.consumeEach
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.channels.produce
 import java.io.BufferedWriter
 import java.io.File
 import java.util.*
@@ -103,14 +101,6 @@ class ExternalSorter<T>(private val shuffleDir: File,
             return
         }
         val middle = (right + left) / 2
-//        val leftMerge = scope.async {
-//            mergeBlocks(scope, left, middle)
-//        }
-//        val rightMerge = scope.async {
-//            mergeBlocks(scope, middle, right)
-//        }
-//        leftMerge.await()
-//        rightMerge.await()
 
         mergeBlocks(scope, left, middle)
         mergeBlocks(scope, middle, right)
@@ -128,12 +118,12 @@ class ExternalSorter<T>(private val shuffleDir: File,
         withContext(Dispatchers.IO) {
             val leftFile = shuffleDir.resolve("shuffle$left-$middle")
             val rightFile = shuffleDir.resolve("shuffle$middle-$right")
-            val leftLines = leftFile.inputStream().bufferedReader().lineSequence().iterator()
-            val rightLines = rightFile.inputStream().bufferedReader().lineSequence().iterator()
+            val leftIterator = serializer.readFileSync(leftFile)
+            val rightIterator = serializer.readFileSync(rightFile)
 
             val outFile = shuffleDir.resolve("shuffle$left-$right")
 
-            serializer.writeToFile(MergedIterator(left, right, comparator))
+            serializer.writeToFile(MergedIterator(leftIterator, rightIterator, comparator), outFile)
 
             leftFile.delete()
             rightFile.delete()
@@ -146,7 +136,7 @@ class ExternalSorter<T>(private val shuffleDir: File,
 
         buffer.sortWith(comparator)
         withContext(Dispatchers.IO) {
-            serializer.writeToFile(buffer, outFile)
+            serializer.writeToFile(buffer.iterator(), outFile)
         }
         buffer.clear()
     }

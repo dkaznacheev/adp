@@ -53,7 +53,7 @@ object SerUtils {
         abstract fun readFileSync(file: File): Iterator<T>
         abstract fun readFile(file: File, scope: CoroutineScope): ReceiveChannel<T>
         abstract suspend fun writeToFile(recChannel: ReceiveChannel<T>, outFile: File)
-        abstract fun writeToFile(elements: Iterable<T>, outFile: File)
+        abstract fun writeToFile(elements: Iterator<T>, outFile: File)
     }
 
     fun getSerializer(c: KClass<*>): Serializer<Any?> {
@@ -131,7 +131,7 @@ object SerUtils {
             }
         }
 
-        override fun writeToFile(elements: Iterable<T>, outFile: File) {
+        override fun writeToFile(elements: Iterator<T>, outFile: File) {
             val output = Output(FileOutputStream(outFile))
             for (value in elements) {
                 kryo.writeObject(output, value)
@@ -183,7 +183,7 @@ object SerUtils {
             }
         }
 
-        override fun writeToFile(elements: Iterable<Any?>, outFile: File) {
+        override fun writeToFile(elements: Iterator<Any?>, outFile: File) {
             val writer = outFile.bufferedWriter()
             for (v in elements) {
                 writer.write(wrap(v))
