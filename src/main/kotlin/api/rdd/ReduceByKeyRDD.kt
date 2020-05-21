@@ -29,7 +29,7 @@ fun <K, T> pairComparator(cmp: Comparator<K> = defaultComparator()): Comparator<
 class ReduceByKeyRDD<K, T>(val parent: RDD<Pair<K, T>>,
                            val keyComparator: (K, K) -> Int,
                            val serializer: SerUtils.Serializer<Pair<K, T>>,
-                           val f: (T, T) -> T): RDD<Pair<K, T>>(parent.master) {
+                           val f: (T, T) -> T): RDD<Pair<K, T>>(parent.master, parent.kryo) {
     private val shuffleId = abs(hashCode())
 
     init {

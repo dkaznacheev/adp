@@ -7,7 +7,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 
-class MappedRDD<T, R>(val parent: RDD<T>, val f: suspend (T) -> R): RDD<R>(parent.master) {
+class MappedRDD<T, R>(val parent: RDD<T>, val f: suspend (T) -> R): RDD<R>(parent.master, parent.kryo) {
     override fun toImpl(): RDDImpl<R> {
         return MappedRDDImpl(parent.toImpl(), f)
     }

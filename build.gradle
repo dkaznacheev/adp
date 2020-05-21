@@ -59,6 +59,8 @@ dependencies {
     compile "io.ktor:ktor-client-apache:1.3.0"
 
     compile group: 'org.apache.commons', name: 'commons-lang3', version: '3.10'
+
+    compile group: 'com.esotericsoftware', name: 'kryo', version: '4.0.2'
 }
 
 protobuf {

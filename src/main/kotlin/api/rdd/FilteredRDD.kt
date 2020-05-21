@@ -6,7 +6,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 
-class FilteredRDD<T>(val parent: RDD<T>, val f: suspend (T) -> Boolean): RDD<T>(parent.master) {
+class FilteredRDD<T>(val parent: RDD<T>, val f: suspend (T) -> Boolean): RDD<T>(parent.master, parent.kryo) {
     override fun toImpl(): RDDImpl<T> {
         return FilteredRDDImpl(parent.toImpl(), f)
     }

@@ -1,5 +1,6 @@
 package api.rdd
 
+import com.esotericsoftware.kryo.Kryo
 import master.Master
 import worker.WorkerContext
 import kotlinx.coroutines.CoroutineScope
@@ -11,10 +12,11 @@ import rowdata.Row
 import java.io.File
 
 class CsvRDD(master: Master,
+             kryo: Kryo,
              val filename: String,
              val hasHeader: Boolean,
              val separator: String = ",",
-             val types: List<ColumnDataType>? = null): RDD<Row>(master) {
+             val types: List<ColumnDataType>? = null): RDD<Row>(master, kryo) {
     override fun toImpl(): RDDImpl<Row> {
         return CsvRDDImpl(filename, hasHeader, separator, types)
     }

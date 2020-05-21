@@ -6,6 +6,7 @@ import api.operations.CacheOperation
 import api.operations.ReduceOperation
 import api.operations.SaveAsCsvOperation
 import api.operations.SaveAsObjectOperation
+import com.esotericsoftware.kryo.Kryo
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -59,7 +60,8 @@ inline fun <reified T> RDD<T>.cache(): Int {
     return master.execute(CacheOperation(this, cacheId))
 }
 
-abstract class RDD<T>(val master: Master) {
+abstract class RDD<T>(val master: Master,
+                      val kryo: Kryo) {
     abstract fun toImpl(): RDDImpl<T>
 }
 

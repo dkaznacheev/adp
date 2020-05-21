@@ -5,7 +5,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.map
 
-class MappedSyncRDD<T, R>(val parent: RDD<T>, val f: suspend (T) -> R): RDD<R>(parent.master) {
+class MappedSyncRDD<T, R>(val parent: RDD<T>, val f: suspend (T) -> R): RDD<R>(parent.master, parent.kryo) {
     override fun toImpl(): RDDImpl<R> {
         return MappedSyncRDDImpl(parent.toImpl(), f)
     }
