@@ -24,7 +24,7 @@ class MasterShuffleManager<T>(val shuffleId: Int,
                 while (workersRemaining.isNotEmpty()) {
                     val dst = distributionChannel.receive()
                     workersRemaining.remove(dst.workerId)
-                    val sample = dst.sampleList.map { SerUtils.deserialize(it.toByteArray()) as T }
+                    val sample = dst.sampleList.map { serializer.deserialize(it.toByteArray()) }
                     distributions.addAll(sample)
                 }
 
@@ -34,7 +34,7 @@ class MasterShuffleManager<T>(val shuffleId: Int,
                         .filterIndexed { i, _ -> i % rangeSize == 1 }
                         .take(workers.size - 1)
                         .toList()
-                finalDistribution.map { ByteString.copyFrom(SerUtils.serialize(it)) }
+                finalDistribution.map { ByteString.copyFrom(serializer.serialize(it)) }
             }
         }
     }

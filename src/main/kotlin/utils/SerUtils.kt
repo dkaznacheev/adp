@@ -16,29 +16,19 @@ import kotlin.reflect.KClass
 
 object SerUtils {
     fun serialize(o: Any?): ByteArray {
-        val bos = ByteArrayOutputStream()
-        val oos = ObjectOutputStream(bos)
-        oos.writeObject(o)
-        return bos.toByteArray()
-    }
-
-    fun ser(o: Any): ByteArray{
-        return SerializationUtils.serialize(o as Serializable)
+        val kryo = Kryo()
+        val ba = ByteArrayOutputStream()
+        val output = Output(ba)
+        kryo.writeObject(output, o)
+        output.flush()
+        return ba.toByteArray()
     }
 
     fun deserialize(serialized: ByteArray): Any {
-        return ObjectInputStream(ByteArrayInputStream(serialized)).readObject()
+        val kryo = Kryo()
+        val input = Input(ByteArrayInputStream(serialized))
+        return kryo.readObject(input, Any::class.java)
     }
-
-    fun unwrap(s: String): Any {
-        return deserialize(base64decode(s))
-    }
-
-    fun wrap(o: Any?): String {
-        return base64encode(serialize(o))
-    }
-
-    fun toHexString(ba: ByteArray) = ba.joinToString("") { "%02x".format(it) }
 
     fun base64encode(a: ByteArray): String {
         return String(Base64.getEncoder().encode(a))
