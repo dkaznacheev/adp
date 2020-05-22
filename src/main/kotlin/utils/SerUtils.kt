@@ -55,6 +55,7 @@ object SerUtils {
         abstract fun readFile(file: File, scope: CoroutineScope): ReceiveChannel<T>
         abstract suspend fun readFileFlow(file: File, flowCollector: FlowCollector<T>)
         abstract suspend fun writeToFile(recChannel: ReceiveChannel<T>, outFile: File)
+        abstract fun writeToOutput(output: Output, o: T)
         abstract fun writeToFile(elements: Iterator<T>, outFile: File)
     }
 
@@ -101,6 +102,10 @@ object SerUtils {
                 }
                 input.close()
             }
+        }
+
+        override fun writeToOutput(output: Output, o: T) {
+            kryo.writeObject(output, o)
         }
 
         override suspend fun writeToFile(recChannel: ReceiveChannel<T>, outFile: File) {

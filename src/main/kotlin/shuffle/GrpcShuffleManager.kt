@@ -3,13 +3,12 @@ package shuffle
 import Adp
 import MasterGrpcKt
 import api.rdd.pairComparator
+import com.esotericsoftware.kryo.io.Output
 import com.google.protobuf.ByteString
 import io.grpc.ManagedChannelBuilder
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
-import kotlinx.coroutines.channels.receiveOrNull
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
@@ -19,10 +18,9 @@ import utils.LazyChannel
 import utils.SerUtils
 import worker.WorkerContext
 import java.io.File
+import java.io.FileOutputStream
 import java.util.*
 import kotlin.random.Random
-import kotlin.streams.toList
-import kotlin.system.measureTimeMillis
 
 class GrpcShuffleManager<T>(val ctx: WorkerContext,
                             private val shuffleId: Int,
@@ -103,7 +101,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
             val partLimits = distribution.partitionsList.map { SerUtils.deserialize(it.toByteArray()) as T }
             System.err.println(partLimits)
             var currentPart = partLimits.first()
-            var currentWriter = shuffleDir.resolve("part0").bufferedWriter()
+            var currentOutput = Output(FileOutputStream(shuffleDir.resolve("part0")))
 
             for (v in serializer.readFileSync(inFile)) {
                 if (blockId < partLimits.size && comparator.compare(v, currentPart) >= 0) {
@@ -111,19 +109,18 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
                     if (blockId < partLimits.size) {
                         currentPart = partLimits[blockId]
                     }
-                    currentWriter.flush()
-                    currentWriter.close()
+                    currentOutput.flush()
+                    currentOutput.close()
                     System.err.println("setting part${blockId - 1}")
 
                     System.err.println("set part${blockId - 1}")
-                    currentWriter = shuffleDir.resolve("part$blockId").bufferedWriter()
+                    currentOutput = Output(FileOutputStream(shuffleDir.resolve("part$blockId")))
                 }
 
-                currentWriter.write(line)
-                currentWriter.newLine()
+                serializer.writeToOutput(currentOutput, v)
             }
-            currentWriter.flush()
-            currentWriter.close()
+            currentOutput.flush()
+            currentOutput.close()
             System.err.println("setting part$blockId")
             //blocks.get()[blockId].set(shuffleDir.resolve("part$blockId"))
             System.err.println("set part$blockId")
