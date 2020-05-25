@@ -9,6 +9,8 @@ import java.io.File
 import java.util.*
 import kotlin.Comparator
 import kotlin.NoSuchElementException
+import kotlin.random.Random
+import kotlin.system.measureTimeMillis
 
 class PeekIterator<T>(val iterator: Iterator<T>): Iterator<T> {
     var t: Optional<T> = Optional.empty()
@@ -98,8 +100,10 @@ class ExternalSorter<T>(private val shuffleDir: File,
         }
         val middle = (right + left) / 2
 
-        mergeBlocks(scope, left, middle)
-        mergeBlocks(scope, middle, right)
+        val a1 = scope.async { mergeBlocks(scope, left, middle) }
+        val a2 = scope.async { mergeBlocks(scope, middle, right) }
+        a1.await()
+        a2.await()
 
         System.err.println("merging files $left $right")
         mergeFiles(left, middle, right)
@@ -131,7 +135,7 @@ class ExternalSorter<T>(private val shuffleDir: File,
                                    serializer: Serializer<T>,
                                    dumpNumber: Int) {
         val outFile = shuffleDir.resolve("shuffle$dumpNumber-${dumpNumber + 1}")
-
+        println("dump $dumpNumber")
         buffer.sortWith(comparator)
         withContext(Dispatchers.IO) {
             serializer.writeToFile(buffer.iterator(), outFile)
@@ -139,3 +143,22 @@ class ExternalSorter<T>(private val shuffleDir: File,
         buffer.clear()
     }
 }
+
+fun main() {
+    val es = ExternalSorter<Int>(File("local"), Comparator { a, b -> b - a }, Int::class.java, 1000000)
+    measureTimeMillis {
+        runBlocking {
+            es.sortAndWrite(this, produce {
+                val random = Random(System.currentTimeMillis())
+                repeat(100) {
+                    repeat(1000000) {
+                        send(Math.abs(random.nextInt()) % 100000)
+                    }
+                }
+            })
+        }
+    }.also { println("completed in ${it / 1000} s") }
+}
+
+// 100m numbers, 1m buffer -> 114s async
+// 100m numbers, 1m buffer -> 145s sync
