@@ -45,7 +45,7 @@ class CacheManager(val capacity: Int) {
         }
     }
 
-    fun <T> load(id: Int, scope: CoroutineScope): ReceiveChannel<T> {
+    fun <T> load(id: Int, scope: CoroutineScope, tClass: Class<T>): ReceiveChannel<T> {
         return scope.produce {
             val cached = cache[id] ?: mutableListOf<Any?>()
             for (o in cached) {
