@@ -71,13 +71,21 @@ fun serTest() {
     val master = GrpcMaster(8099, workers)
 }
 
+fun simpleTest() {
+    val workers = File("workers.conf").readLines()
+    val master = GrpcMaster(8099, workers)
+    LinesRDD(master, "tmp.csv")
+        .map { it.split(",")[1].toInt() }
+        .saveAsObject("numbers.bin")
+}
+
 fun main(args: Array<String>) {
     if (args.isNotEmpty() && args[0] == "worker") {
         Worker(args[1].toInt()).startRPC()
     } else {
         //TestService(8085, 10L).start()
         measureTimeMillis {
-            reduceByKeyGrpcTest()
-        }.also { println(it) }
+            simpleTest()
+        }.also { println("completed in $it ms") }
     }
 }
