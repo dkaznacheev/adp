@@ -42,6 +42,8 @@ class GrpcMaster(private val port: Int, private val workers: List<String>): Mast
     override fun <T, R> execute(op: ParallelOperation<T, R>): R {
         rpcServer.start()
 
+        val opSerialized = op.serialize()
+
         return runBlocking {
             val channel = Channel<R>(MAX_CAP)
             val result = async { op.consumeParts(channel) }
@@ -50,7 +52,7 @@ class GrpcMaster(private val port: Int, private val workers: List<String>): Mast
 
             workerStubs.zip(workers).map { (worker, id) ->
                 async {
-                    val grpcOp = toGrpcOperation(op, id)
+                    val grpcOp = toGrpcOperation(opSerialized, id)
                     try {
                         val response = worker.execute(grpcOp)
                         val ba = response.value.toByteArray()
@@ -84,9 +86,9 @@ class GrpcMaster(private val port: Int, private val workers: List<String>): Mast
     }
 
     companion object {
-        fun toGrpcOperation(op: ParallelOperation<*, *>, workerId: String): Adp.Operation {
+        fun toGrpcOperation(op: ByteArray, workerId: String): Adp.Operation {
             return Adp.Operation.newBuilder()
-                .setOp(ByteString.copyFrom(op.serialize()))
+                .setOp(ByteString.copyFrom(op))
                 .setWorkerId(workerId)
                 .build()
         }

@@ -42,11 +42,11 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
 
     fun blockFor(workerNum: Int): Flow<Adp.Value> {
         System.err.println("got request for $workerNum")
-        return flow {
+        return flow<T> {
             System.err.println("awaiting part$workerNum")
             val file = blocks.get()[workerNum]
             serializer.readFileFlow(file, this)
-        }.map {
+        }.map<T, Adp.Value> {
             Adp.Value.newBuilder()
                     .setValue(ByteString.copyFrom(serializer.serialize(it)))
                     .build()

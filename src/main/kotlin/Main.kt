@@ -66,6 +66,11 @@ fun saveAsObjectInlineTest() {
             .saveAsObject("file.txt")
 }
 
+fun serTest() {
+    val workers = File("workers.conf").readLines()
+    val master = GrpcMaster(8099, workers)
+}
+
 fun main(args: Array<String>) {
     if (args.isNotEmpty() && args[0] == "worker") {
         Worker(args[1].toInt()).startRPC()
