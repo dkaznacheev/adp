@@ -11,6 +11,7 @@ import java.io.Serializable
 
 abstract class ParallelOperation<T, R> (val rdd: RDD<T>, val rClass: Class<R>) {
     abstract fun toImpl(): ParallelOperationImpl<T, R>
+    abstract val zero: R
     abstract suspend fun consumeParts(channel: ReceiveChannel<R>): R
 
     open fun serialize(): ByteArray {

@@ -7,6 +7,7 @@ import master.GrpcMaster
 //import master.LocalMaster
 import rowdata.ColumnDataType
 import utils.SerUtils
+import utils.toN
 import worker.Worker
 import java.io.File
 import kotlin.system.measureTimeMillis
@@ -70,9 +71,13 @@ fun simpleTest() {
     val workers = File("workers.conf").readLines()
     val master = GrpcMaster(8099, workers)
     LinesRDD(master, "tmp.csv")
-        .map { it.split(",")[1].toInt() }
-        .reduce { a, b -> a + b }
-        .also { println(it) }
+        .map {
+            val parts = it.split(",")
+            parts[0] toN parts[1].toInt()
+        }
+        .reduceByKey { a, b -> a + b }
+        .map { (a, b) -> "$a: $b"}
+        .show()
 }
 
 fun main(args: Array<String>) {
