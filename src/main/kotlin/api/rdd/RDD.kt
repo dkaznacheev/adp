@@ -10,13 +10,13 @@ import com.esotericsoftware.kryo.Kryo
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
+import utils.NPair
 import utils.SerUtils
 import java.io.Serializable
 import kotlin.math.abs
 
-inline fun <reified K, reified V> RDD<Pair<K, V>>.reduceByKey(noinline comparator: (K, K) -> Int = defaultComparatorFun<K>(), noinline f: (V, V) -> V): RDD<Pair<K, V>> {
-    val serializer = SerUtils.getPairSerializer<K, V>()
-    return ReduceByKeyRDD(this, comparator, serializer, f)
+inline fun <reified K, reified V> RDD<NPair<K, V>>.reduceByKey(noinline comparator: (K, K) -> Int = defaultComparatorFun<K>(), noinline f: (V, V) -> V): RDD<NPair<K, V>> {
+    return ReduceByKeyRDD(this, comparator, f)
 }
 //
 //inline fun <reified T> RDD<T>.saveAsObject(name: String) {
@@ -28,7 +28,7 @@ inline fun <reified K, reified V> RDD<Pair<K, V>>.reduceByKey(noinline comparato
 //}
 
 inline fun <reified T, reified R> RDD<T>.map(noinline f: suspend (T) -> R): RDD<R> {
-    return MappedRDD(this, f)
+    return MappedRDD(this, R::class.java, f)
 }
 
 inline fun <reified T> RDD<T>.show() {
@@ -48,7 +48,7 @@ inline fun <reified T> RDD<T>.show() {
 //}
 //
 inline fun <reified T> RDD<T>.reduce(noinline f: (T, T) -> T): T? {
-    return master.execute(ReduceOperation(this, SerUtils.kryoSerializer(kryo), f))
+    return master.execute(ReduceOperation(this, T::class.java, f))
 }
 //
 //inline fun <reified T> RDD<T>.saveAsCSV(name: String) {
@@ -60,8 +60,7 @@ inline fun <reified T> RDD<T>.reduce(noinline f: (T, T) -> T): T? {
 //    return master.execute(CacheOperation(this, SerUtils.kryoSerializer(kryo), cacheId))
 //}
 
-abstract class RDD<T>(val master: Master,
-                      val kryo: Kryo) {
+abstract class RDD<T>(val master: Master, val tClass: Class<T>) {
     abstract fun toImpl(): RDDImpl<T>
 }
 

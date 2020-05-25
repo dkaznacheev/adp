@@ -13,9 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
-import utils.ExternalSorter
-import utils.LazyChannel
-import utils.SerUtils
+import utils.*
 import worker.WorkerContext
 import java.io.File
 import java.io.FileOutputStream
@@ -25,7 +23,7 @@ import kotlin.random.Random
 class GrpcShuffleManager<T>(val ctx: WorkerContext,
                             private val shuffleId: Int,
                             private val comparator: Comparator<T>,
-                            private val serializer: SerUtils.Serializer<T>): WorkerShuffleManager<T> {
+                            private val tClass: Class<T>): WorkerShuffleManager<T> {
     private val masterAddress = "localhost:8099"
     private val outPath = File("shuffle/outg")
     private val shuffleDir = outPath.resolve("shuffle$shuffleId")
@@ -39,6 +37,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
     private val partitionId = LazyChannel<Int>()
     private val blocks = LazyChannel<List<File>>()
     private val stubs = LazyChannel<List<WorkerGrpcKt.WorkerCoroutineStub>>()
+    private val serializer = KryoSerializer(tClass)
 
     fun blockFor(workerNum: Int): Flow<Adp.Value> {
         System.err.println("got request for $workerNum")
@@ -60,7 +59,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
             shuffleDir.mkdir()
         }
 
-        ExternalSorter(shuffleDir, comparator, serializer).sortAndWrite(scope, recChannel)
+        ExternalSorter(shuffleDir, comparator, tClass).sortAndWrite(scope, recChannel)
         val sample = getSample(shuffleDir.resolve("block"))
 
         val request = Adp.WorkerDistribution.newBuilder()
@@ -84,18 +83,17 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
         System.err.println("splitting block")
 
 
-        splitToParts(distribution, shuffleDir, shuffleDir.resolve("block"), serializer, comparator)
+        splitToParts(distribution, shuffleDir, shuffleDir.resolve("block"), comparator)
         val b = (0..distribution.partitionsList.size).map { shuffleDir.resolve("part$it") }
         blocks.set(b)
 
         System.err.println("block splitted")
     }
 
-    suspend fun <T> splitToParts(distribution: Adp.Distribution,
-                                 shuffleDir: File,
-                                 inFile: File,
-                                 serializer: SerUtils.Serializer<T>,
-                                 comparator: Comparator<T>) {
+    suspend fun splitToParts(distribution: Adp.Distribution,
+                             shuffleDir: File,
+                             inFile: File,
+                             comparator: Comparator<T>) {
         withContext(Dispatchers.IO) {
             var blockId = 0
             val partLimits = distribution.partitionsList.map { serializer.deserialize(it.toByteArray()) }
@@ -156,16 +154,16 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
                 }
             }
 
-            val pq = PriorityQueue<Pair<T, Int>>(pairComparator<T, Int>(comparator))
+            val pq = PriorityQueue<NPair<T, Int>>(pairComparator<T, Int>(comparator))
             for ((i, channel) in channels.withIndex()) {
                 channel.receiveOrNull()?.let {
-                    pq.add(it to i)
+                    pq.add(it toN i)
                 }
             }
 
             while (!pq.isEmpty()) {
                 val (v, i) = pq.poll()
-                channels[i].receiveOrNull()?.also { pq.add(it to i) }
+                channels[i].receiveOrNull()?.also { pq.add(it toN i) }
                 send(v)
             }
         }

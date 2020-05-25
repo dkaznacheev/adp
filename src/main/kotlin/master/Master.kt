@@ -2,17 +2,17 @@ package master
 
 import api.operations.ParallelOperation
 import api.rdd.RDDImpl
-import utils.SerUtils
+import utils.NPair
 
 interface Master {
     fun <T, R> execute(op: ParallelOperation<T, R>): R
 
     fun <K> addShuffleManager(masterShuffleManager: MasterShuffleManager<K>)
 
-    fun <K, T> getReduceByKeyRDDImpl(parent: RDDImpl<Pair<K, T>>,
+    fun <K, T> getReduceByKeyRDDImpl(parent: RDDImpl<NPair<K, T>>,
                                      shuffleId: Int,
                                      keyComparator: (K, K) -> Int,
-                                     serializer: SerUtils.Serializer<Pair<K, T>>,
-                                     f: (T, T) -> T): RDDImpl<Pair<K, T>>
+                                     tClass: Class<NPair<K, T>>,
+                                     f: (T, T) -> T): RDDImpl<NPair<K, T>>
 }
 

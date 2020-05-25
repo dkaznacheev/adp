@@ -13,7 +13,7 @@ import utils.SerUtils
 import java.io.File
 
 class LinesRDD(master: Master,
-                 private val filename: String): RDD<String>(master, Kryo()) {
+                 private val filename: String): RDD<String>(master, String::class.java) {
     override fun toImpl(): RDDImpl<String> {
         return LinesRDDImpl(filename)
     }

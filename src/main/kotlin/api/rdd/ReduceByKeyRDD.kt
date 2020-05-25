@@ -11,8 +11,11 @@ import utils.SerUtils
 import shuffle.GrpcShuffleManager
 //import shuffle.LocalShuffleManager
 import shuffle.WorkerShuffleManager
+import utils.NPair
+import utils.toN
 import kotlin.Comparator
 import kotlin.math.abs
+
 
 fun <T> defaultComparatorFun() : (T, T) -> Int {
     return { a, b -> a.hashCode() - b.hashCode() }
@@ -22,43 +25,42 @@ fun <T> defaultComparator() : Comparator<T> {
     return kotlin.Comparator { a, b -> a.hashCode() - b.hashCode() }
 }
 
-fun <K, T> pairComparator(cmp: Comparator<K> = defaultComparator()): Comparator<Pair<K, T>> {
-    return kotlin.Comparator { (k1, _), (k2, _) -> cmp.compare(k1, k2) }
+fun <K, T> pairComparator(cmp: Comparator<K> = defaultComparator()): Comparator<NPair<K, T>> {
+    return kotlin.Comparator { n1, n2 -> cmp.compare(n1.first, n2.first) }
 }
 
-class ReduceByKeyRDD<K, T>(val parent: RDD<Pair<K, T>>,
+class ReduceByKeyRDD<K, T>(val parent: RDD<NPair<K, T>>,
                            val keyComparator: (K, K) -> Int,
-                           val serializer: SerUtils.Serializer<Pair<K, T>>,
-                           val f: (T, T) -> T): RDD<Pair<K, T>>(parent.master, parent.kryo) {
+                           val f: (T, T) -> T): RDD<NPair<K, T>>(parent.master, NPair::class.java as Class<NPair<K, T>>) {
     private val shuffleId = abs(hashCode())
 
     init {
-        master.addShuffleManager<Pair<K, T>>(MasterShuffleManager(shuffleId, pairComparator<K, T>(kotlin.Comparator(keyComparator)), serializer))
+        master.addShuffleManager<NPair<K, T>>(MasterShuffleManager(shuffleId, pairComparator<K, T>(kotlin.Comparator(keyComparator)), tClass))
     }
 
-    override fun toImpl(): RDDImpl<Pair<K, T>> {
-        return master.getReduceByKeyRDDImpl(parent.toImpl(), shuffleId, keyComparator, serializer, f)
+    override fun toImpl(): RDDImpl<NPair<K, T>> {
+        return master.getReduceByKeyRDDImpl(parent.toImpl(), shuffleId, keyComparator, tClass, f)
     }
 }
 
-abstract class ReduceByKeyRDDImpl<K, T>(val parent: RDDImpl<Pair<K, T>>,
+abstract class ReduceByKeyRDDImpl<K, T>(val parent: RDDImpl<NPair<K, T>>,
                                         val shuffleId: Int,
                                         val keyComparator: (K, K) -> Int,
-                                        val serializer: SerUtils.Serializer<Pair<K, T>>,
-                                        val f: (T, T) -> T): RDDImpl<Pair<K, T>>() {
+                                        val tClass: Class<NPair<K, T>>,
+                                        val f: (T, T) -> T): RDDImpl<NPair<K, T>>() {
 
-    abstract fun getShuffleManager(ctx: WorkerContext, shuffleId: Int): WorkerShuffleManager<Pair<K, T>>
+    abstract fun getShuffleManager(ctx: WorkerContext, shuffleId: Int): WorkerShuffleManager<NPair<K, T>>
 
-    override fun channel(scope: CoroutineScope, ctx: WorkerContext): ReceiveChannel<Pair<K, T>> {
+    override fun channel(scope: CoroutineScope, ctx: WorkerContext): ReceiveChannel<NPair<K, T>> {
         val recChannel = parent.channel(scope, ctx)
         val shuffleManager = getShuffleManager(ctx, shuffleId)
 
-        return scope.produce<Pair<K, T>> {
+        return scope.produce<NPair<K, T>> {
             shuffleManager.writeAndBroadcast(scope, recChannel)
             System.err.println("finished writing")
 
             val merged = shuffleManager.readMerged(scope)
-            var currentPair: Pair<K, T>? = null
+            var currentPair: NPair<K, T>? = null
 
             for (pair in merged) {
                 currentPair = if (currentPair == null) {
@@ -68,7 +70,7 @@ abstract class ReduceByKeyRDDImpl<K, T>(val parent: RDDImpl<Pair<K, T>>,
                         send(currentPair)
                         pair
                     } else {
-                        pair.first to f(currentPair.second, pair.second)
+                        pair.first toN f(currentPair.second, pair.second)
                     }
                 }
             }
@@ -80,14 +82,14 @@ abstract class ReduceByKeyRDDImpl<K, T>(val parent: RDDImpl<Pair<K, T>>,
     }
 }
 
-class ReduceByKeyGrpcRDDImpl<K, T>(parent: RDDImpl<Pair<K, T>>,
+class ReduceByKeyGrpcRDDImpl<K, T>(parent: RDDImpl<NPair<K, T>>,
                                    shuffleId: Int,
                                    keyComparator: (K, K) -> Int,
-                                   serializer: SerUtils.Serializer<Pair<K, T>>,
+                                   tClass: Class<NPair<K, T>>,
                                    f: (T, T) -> T):
-        ReduceByKeyRDDImpl<K, T>(parent, shuffleId, keyComparator, serializer, f) {
-    override fun getShuffleManager(ctx: WorkerContext, shuffleId: Int): WorkerShuffleManager<Pair<K, T>> {
-        val manager = GrpcShuffleManager<Pair<K, T>>(ctx, shuffleId, pairComparator(kotlin.Comparator(keyComparator)), serializer)
+        ReduceByKeyRDDImpl<K, T>(parent, shuffleId, keyComparator, tClass, f) {
+    override fun getShuffleManager(ctx: WorkerContext, shuffleId: Int): WorkerShuffleManager<NPair<K, T>> {
+        val manager = GrpcShuffleManager<NPair<K, T>>(ctx, shuffleId, pairComparator(kotlin.Comparator(keyComparator)), tClass)
         ctx.addShuffleManager(shuffleId, manager)
         return manager
     }

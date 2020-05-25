@@ -7,13 +7,17 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 
-class MappedRDD<T, R>(val parent: RDD<T>, val f: suspend (T) -> R): RDD<R>(parent.master, parent.kryo) {
+class MappedRDD<T, R>(val parent: RDD<T>,
+                      val rClass: Class<R>,
+                      val f: suspend (T) -> R): RDD<R>(parent.master, rClass) {
     override fun toImpl(): RDDImpl<R> {
-        return MappedRDDImpl(parent.toImpl(), f)
+        return MappedRDDImpl(parent.toImpl(), rClass, f)
     }
 }
 
-class MappedRDDImpl<T, R>(val parent: RDDImpl<T>, val f: suspend (T) -> R): RDDImpl<R>() {
+class MappedRDDImpl<T, R>(val parent: RDDImpl<T>,
+                          val rClass: Class<R>,
+                          val f: suspend (T) -> R): RDDImpl<R>() {
     @ExperimentalCoroutinesApi
     override fun channel(scope: CoroutineScope, ctx: WorkerContext): ReceiveChannel<R> {
         val channel = Channel<R>(MAX_CAP)

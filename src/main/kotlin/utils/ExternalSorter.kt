@@ -68,20 +68,21 @@ class MergedIterator<T>(
 
 class ExternalSorter<T>(private val shuffleDir: File,
                         private val comparator: Comparator<T>,
-                        private val serializer: SerUtils.Serializer<T>,
+                        private val tClass: Class<T>,
                         private val bufferSize: Int = 1000) {
 
     suspend fun sortAndWrite(scope: CoroutineScope, recChannel: ReceiveChannel<T>) {
         val buffer = mutableListOf<T>()
+        val serializer = KryoSerializer(tClass)
         var dumpNumber = 0
         recChannel.consumeEach {
             buffer.add(it)
             if (buffer.size >= bufferSize) {
-                dumpBuffer(buffer, dumpNumber++)
+                dumpBuffer(buffer, serializer, dumpNumber++)
             }
         }
         if (buffer.size > 0)
-            dumpBuffer(buffer, dumpNumber++)
+            dumpBuffer(buffer, serializer, dumpNumber++)
         val blocksNumber = dumpNumber
         mergeBlocks(scope, 0, blocksNumber)
         shuffleDir.resolve("shuffle0-$blocksNumber").renameTo(shuffleDir.resolve("block"))
@@ -111,6 +112,7 @@ class ExternalSorter<T>(private val shuffleDir: File,
             right: Int
     ) {
         withContext(Dispatchers.IO) {
+            val serializer = KryoSerializer(tClass)
             val leftFile = shuffleDir.resolve("shuffle$left-$middle")
             val rightFile = shuffleDir.resolve("shuffle$middle-$right")
             val leftIterator = serializer.readFileSync(leftFile)
@@ -126,6 +128,7 @@ class ExternalSorter<T>(private val shuffleDir: File,
     }
 
     private suspend fun dumpBuffer(buffer: MutableList<T>,
+                                   serializer: Serializer<T>,
                                    dumpNumber: Int) {
         val outFile = shuffleDir.resolve("shuffle$dumpNumber-${dumpNumber + 1}")
 

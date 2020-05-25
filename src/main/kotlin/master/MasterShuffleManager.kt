@@ -6,17 +6,20 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import utils.KryoSerializer
 import utils.SerUtils
+import utils.kryoSerializer
 
 class MasterShuffleManager<T>(val shuffleId: Int,
                               private val comparator: Comparator<T>,
-                              private val serializer: SerUtils.Serializer<T>) {
+                              private val tClass: Class<T>) {
     private val distributionChannel = Channel<Adp.WorkerDistribution>(10000)
     private var distribution: Deferred<List<ByteString>>? = null
 
     fun listenForDistributions(scope: CoroutineScope,
                                workers: List<String>) {
         scope.launch {
+            val serializer = KryoSerializer(tClass)
             distribution = async {
                 val workersRemaining = workers.toMutableList()
                 val distributions = mutableListOf<T>()

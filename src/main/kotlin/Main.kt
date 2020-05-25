@@ -72,6 +72,7 @@ fun simpleTest() {
     LinesRDD(master, "tmp.csv")
         .map { it.split(",")[1].toInt() }
         .reduce { a, b -> a + b }
+        .also { println(it) }
 }
 
 fun main(args: Array<String>) {

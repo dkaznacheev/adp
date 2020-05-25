@@ -12,7 +12,10 @@ import io.grpc.ManagedChannelBuilder
 import io.grpc.ServerBuilder
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
+import utils.KryoSerializer
+import utils.NPair
 import utils.SerUtils
+import utils.Serializer
 import java.lang.Exception
 
 class GrpcMaster(private val port: Int, private val workers: List<String>): Master {
@@ -32,11 +35,12 @@ class GrpcMaster(private val port: Int, private val workers: List<String>): Mast
             .addService(ADPMasterService())
             .build()
 
-    override fun <K, V> getReduceByKeyRDDImpl(parent: RDDImpl<Pair<K, V>>,
+    override fun <K, V> getReduceByKeyRDDImpl(parent: RDDImpl<NPair<K, V>>,
                                               shuffleId: Int,
                                               keyComparator: (K, K) -> Int,
-                                              serializer: SerUtils.Serializer<Pair<K, V>>, f: (V, V) -> V): RDDImpl<Pair<K, V>> {
-        return ReduceByKeyGrpcRDDImpl(parent, shuffleId, keyComparator, serializer, f)
+                                              tClass: Class<NPair<K, V>>,
+                                              f: (V, V) -> V): RDDImpl<NPair<K, V>> {
+        return ReduceByKeyGrpcRDDImpl(parent, shuffleId, keyComparator, tClass, f)
     }
 
     override fun <T, R> execute(op: ParallelOperation<T, R>): R {
@@ -50,13 +54,15 @@ class GrpcMaster(private val port: Int, private val workers: List<String>): Mast
 
             shuffleManagers.forEach { (_, manager) -> manager.listenForDistributions(this, workers) }
 
+            val resultSerializer = KryoSerializer(op.rClass)
+
             workerStubs.zip(workers).map { (worker, id) ->
                 async {
                     val grpcOp = toGrpcOperation(opSerialized, id)
                     try {
                         val response = worker.execute(grpcOp)
                         val ba = response.value.toByteArray()
-                        channel.send(SerUtils.deserialize(ba) as R)
+                        channel.send(resultSerializer.deserialize(ba))
                     } catch (e: Throwable) {
                         e.printStackTrace()
                         error(e)
