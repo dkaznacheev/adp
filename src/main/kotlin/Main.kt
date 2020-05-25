@@ -4,7 +4,7 @@ import io.ktor.client.request.get
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import master.GrpcMaster
-import master.LocalMaster
+//import master.LocalMaster
 import rowdata.ColumnDataType
 import utils.SerUtils
 import worker.Worker
@@ -24,59 +24,54 @@ fun sertest() {
     }
 }
 
+//fun reduceByKeyGrpcTest() {
+//    val workers = File("workers.conf").readLines()
+//    val master = GrpcMaster(8099, workers)
+//    fileRdd<String>(master, "tmp.csv")
+//        .map {
+//            val parts = it.split(",")
+//            parts[0] to parts[1].toInt()
+//        }
+//        .reduceByKey { a, b -> a + b }
+//        .saveAsObject(SerUtils.getPairSerializer<String, Int>(),"shuffled.txt")
+//}
+//
+//fun reduceGrpcFileTest() {
+//    val workers = File("workers.conf").readLines()
+//    val master = GrpcMaster(8099, workers)
+//    fileRdd<String>(master,"tmp.csv")
+//            .map { it.split(",")[1].toInt() }
+//            .reduce { a, b -> a + b}
+//            .also { println(it) }
+//}
+//
+//fun reduceHTTPTest() {
+//    val workers = File("workers.conf").readLines()
+//    val master = GrpcMaster(8099, workers)
+//    fileRdd<Int>(master,"numbers.txt")
+//            .mapHTTP {
+//                val t = get<String>("http://localhost:8085/echo?value=$it")
+//                t.length
+//            }
+//            .reduce { a, b -> a + b}
+//            .also { println(it) }
+//}
+//
+//fun saveAsObjectInlineTest() {
+//    val workers = File("workers.conf").readLines()
+//    val master = GrpcMaster(8099, workers)
+//    fileRdd<Int>(master,"numbers.txt")
+//            .map { it.toString() }
+//            .saveAsObject("file.txt")
+//}
 
-fun reduceByKeyGrpcTest() {
-    val workers = File("workers.conf").readLines()
-    val master = GrpcMaster(8099, workers)
-    fileRdd<String>(master, "tmp.csv")
-        .map {
-            val parts = it.split(",")
-            parts[0] to parts[1].toInt()
-        }
-        .reduceByKey { a, b -> a + b }
-        .saveAsObject(SerUtils.getPairSerializer<String, Int>(),"shuffled.txt")
-}
-
-fun reduceGrpcFileTest() {
-    val workers = File("workers.conf").readLines()
-    val master = GrpcMaster(8099, workers)
-    fileRdd<String>(master,"tmp.csv")
-            .map { it.split(",")[1].toInt() }
-            .reduce { a, b -> a + b}
-            .also { println(it) }
-}
-
-fun reduceHTTPTest() {
-    val workers = File("workers.conf").readLines()
-    val master = GrpcMaster(8099, workers)
-    fileRdd<Int>(master,"numbers.txt")
-            .mapHTTP {
-                val t = get<String>("http://localhost:8085/echo?value=$it")
-                t.length
-            }
-            .reduce { a, b -> a + b}
-            .also { println(it) }
-}
-
-fun saveAsObjectInlineTest() {
-    val workers = File("workers.conf").readLines()
-    val master = GrpcMaster(8099, workers)
-    fileRdd<Int>(master,"numbers.txt")
-            .map { it.toString() }
-            .saveAsObject("file.txt")
-}
-
-fun serTest() {
-    val workers = File("workers.conf").readLines()
-    val master = GrpcMaster(8099, workers)
-}
 
 fun simpleTest() {
     val workers = File("workers.conf").readLines()
     val master = GrpcMaster(8099, workers)
     LinesRDD(master, "tmp.csv")
         .map { it.split(",")[1].toInt() }
-        .saveAsObject("numbers.bin")
+        .reduce { a, b -> a + b }
 }
 
 fun main(args: Array<String>) {

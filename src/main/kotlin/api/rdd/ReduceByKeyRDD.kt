@@ -5,11 +5,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.launch
-import master.LocalMaster
+//import master.LocalMaster
 import master.MasterShuffleManager
 import utils.SerUtils
 import shuffle.GrpcShuffleManager
-import shuffle.LocalShuffleManager
+//import shuffle.LocalShuffleManager
 import shuffle.WorkerShuffleManager
 import kotlin.Comparator
 import kotlin.math.abs
@@ -94,14 +94,14 @@ class ReduceByKeyGrpcRDDImpl<K, T>(parent: RDDImpl<Pair<K, T>>,
 
 }
 
-
-class LocalReduceByKeyRDDImpl<K, T>(parent: RDDImpl<Pair<K, T>>,
-                                    shuffleId: Int,
-                                    keyComparator: (K, K) -> Int,
-                                    serializer: SerUtils.Serializer<Pair<K, T>>,
-                                    f: (T, T) -> T):
-        ReduceByKeyRDDImpl<K, T>(parent, shuffleId, keyComparator, serializer, f) {
-    override fun getShuffleManager(ctx: WorkerContext, shuffleId: Int): WorkerShuffleManager<Pair<K, T>> {
-        return LocalShuffleManager<Pair<K, T>>(ctx, shuffleId, pairComparator(kotlin.Comparator(keyComparator)), serializer)
-    }
-}
+//
+//class LocalReduceByKeyRDDImpl<K, T>(parent: RDDImpl<Pair<K, T>>,
+//                                    shuffleId: Int,
+//                                    keyComparator: (K, K) -> Int,
+//                                    serializer: SerUtils.Serializer<Pair<K, T>>,
+//                                    f: (T, T) -> T):
+//        ReduceByKeyRDDImpl<K, T>(parent, shuffleId, keyComparator, serializer, f) {
+//    override fun getShuffleManager(ctx: WorkerContext, shuffleId: Int): WorkerShuffleManager<Pair<K, T>> {
+//        return LocalShuffleManager<Pair<K, T>>(ctx, shuffleId, pairComparator(kotlin.Comparator(keyComparator)), serializer)
+//    }
+//}
