@@ -22,6 +22,10 @@ inline fun <reified K, reified V> RDD<NPair<K, V>>.reduceByKey(noinline comparat
     return ReduceByKeyRDD(this, comparator, f)
 }
 
+inline fun <reified T> RDD<T>.sorted(noinline comparator: (T, T) -> Int = defaultComparatorFun<T>()): RDD<T> {
+    return SortedRDD(this, comparator)
+}
+
 inline fun <reified T> RDD<T>.saveAsObject(name: String) {
     master.execute(SaveAsObjectOperation(this, name, T::class.java))
 }

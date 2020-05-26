@@ -80,13 +80,25 @@ fun simpleTest() {
         .show()
 }
 
+fun singleWorkerTest() {
+    val workers = File("workers.conf").readLines().take(1)
+    val master = GrpcMaster(8099, workers)
+    LinesRDD(master, "tmp.csv")
+        .map {
+            val parts = it.split(",")
+            parts[1].toInt()
+        }
+        .sorted()
+        .show()
+}
+
 fun main(args: Array<String>) {
     if (args.isNotEmpty() && args[0] == "worker") {
         Worker(args[1].toInt()).startRPC()
     } else {
         //TestService(8085, 10L).start()
         measureTimeMillis {
-            simpleTest()
+            singleWorkerTest()
         }.also { println("completed in $it ms") }
     }
 }

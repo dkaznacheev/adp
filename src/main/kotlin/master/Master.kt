@@ -14,5 +14,10 @@ interface Master {
                                      keyComparator: (K, K) -> Int,
                                      tClass: Class<NPair<K, T>>,
                                      f: (T, T) -> T): RDDImpl<NPair<K, T>>
+
+    fun <T> getSortedRDDImpl(parent: RDDImpl<T>,
+                                     shuffleId: Int,
+                                     comparator: (T, T) -> Int,
+                                     tClass: Class<T>): RDDImpl<T>
 }
 

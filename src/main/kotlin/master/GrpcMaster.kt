@@ -7,6 +7,7 @@ import api.MAX_CAP
 import api.operations.ParallelOperation
 import api.rdd.RDDImpl
 import api.rdd.ReduceByKeyGrpcRDDImpl
+import api.rdd.SortedGrpcRDDImpl
 import com.google.protobuf.ByteString
 import io.grpc.ManagedChannelBuilder
 import io.grpc.ServerBuilder
@@ -41,6 +42,10 @@ class GrpcMaster(private val port: Int, private val workers: List<String>): Mast
                                               tClass: Class<NPair<K, V>>,
                                               f: (V, V) -> V): RDDImpl<NPair<K, V>> {
         return ReduceByKeyGrpcRDDImpl(parent, shuffleId, keyComparator, tClass, f)
+    }
+
+    override fun <T> getSortedRDDImpl(parent: RDDImpl<T>, shuffleId: Int, comparator: (T, T) -> Int, tClass: Class<T>): RDDImpl<T> {
+        return SortedGrpcRDDImpl(parent, shuffleId, comparator, tClass)
     }
 
     override fun <T, R> execute(op: ParallelOperation<T, R>): R {

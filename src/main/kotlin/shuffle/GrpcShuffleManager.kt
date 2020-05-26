@@ -98,6 +98,11 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
             var blockId = 0
             val partLimits = distribution.partitionsList.map { serializer.deserialize(it.toByteArray()) }
             System.err.println(partLimits)
+            if (partLimits.isEmpty()) {
+                inFile.renameTo(shuffleDir.resolve("part0"))
+                return@withContext
+            }
+
             var currentPart = partLimits.first()
             var currentOutput = Output(FileOutputStream(shuffleDir.resolve("part0")))
 

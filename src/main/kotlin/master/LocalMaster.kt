@@ -2,6 +2,7 @@ package master
 
 import api.operations.ParallelOperation
 import api.rdd.LocalReduceByKeyRDDImpl
+import api.rdd.LocalSortedRDDImpl
 import api.rdd.RDDImpl
 import api.rdd.ReduceByKeyGrpcRDDImpl
 import kotlinx.coroutines.runBlocking
@@ -31,5 +32,9 @@ class LocalMaster: Master {
                                               tClass: Class<NPair<K, V>>,
                                               f: (V, V) -> V): RDDImpl<NPair<K, V>> {
         return LocalReduceByKeyRDDImpl(parent, shuffleId, keyComparator, tClass, f)
+    }
+
+    override fun <T> getSortedRDDImpl(parent: RDDImpl<T>, shuffleId: Int, comparator: (T, T) -> Int, tClass: Class<T>): RDDImpl<T> {
+        return LocalSortedRDDImpl(parent, shuffleId, comparator, tClass)
     }
 }
