@@ -10,6 +10,7 @@ class WorkerContext(
         val cache: CacheManager) {
     val sampleRate: Double
     val masterAddress: String
+    val blockSize: Int
 
     init {
         val properties = Properties()
@@ -22,6 +23,7 @@ class WorkerContext(
 
         sampleRate = properties["sampleRate"]?.toString()?.toDouble() ?: 1.0
         masterAddress = properties["masterAddress"]?.toString() ?: "localhost:8080"
+        blockSize = properties["blockSize"]?.toString()?.toInt() ?: 1000
     }
 
     fun addShuffleManager(shuffleId: Int, shuffleManager: GrpcShuffleManager<*>) {

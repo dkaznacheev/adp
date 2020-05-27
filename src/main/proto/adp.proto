@@ -9,6 +9,10 @@ message Value {
   bytes value = 1;
 }
 
+message ValueBlock {
+  repeated bytes values = 1;
+}
+
 message ShuffleInfo {
   int32 shuffleId = 1;
   int32 shuffleWorkerNum = 2;
@@ -36,7 +40,7 @@ message Distribution {
 
 service Worker {
   rpc execute(Operation) returns (Value) {}
-  rpc shuffleRead(ShuffleInfo) returns (stream Value) {}
+  rpc shuffleRead(ShuffleInfo) returns (stream ValueBlock) {}
 }
 
 service Master {

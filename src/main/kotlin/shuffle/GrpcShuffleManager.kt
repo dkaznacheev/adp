@@ -9,10 +9,7 @@ import io.grpc.ManagedChannelBuilder
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.*
 import utils.*
 import worker.WorkerContext
 import java.io.File
@@ -30,6 +27,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
     private val shuffleDir = outPath.resolve("shuffle$shuffleId")
 
     private val SAMPLE_RATE = ctx.sampleRate
+    private val blockSize = ctx.blockSize
 
     private val masterStub = MasterGrpcKt.MasterCoroutineStub(ManagedChannelBuilder.forTarget(masterAddress)
             .usePlaintext()
@@ -39,17 +37,18 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
     private val blocks = LazyChannel<List<File>>()
     private val stubs = LazyChannel<List<WorkerGrpcKt.WorkerCoroutineStub>>()
 
-    fun blockFor(workerNum: Int): Flow<Adp.Value> {
+    fun blockFor(workerNum: Int): Flow<Adp.ValueBlock> {
         System.err.println("got request for $workerNum")
         val serializer = KryoSerializer(tClass)
-        return flow<T> {
+        return flow<List<T>> {
             System.err.println("awaiting part$workerNum")
             val file = blocks.get()[workerNum]
-            serializer.readFileFlow(file, this)
-        }.map<T, Adp.Value> {
-            Adp.Value.newBuilder()
-                    .setValue(ByteString.copyFrom(serializer.serialize(it)))
-                    .build()
+            serializer.readFileFlow(file, blockSize, this)
+        }.map<List<T>, Adp.ValueBlock> { values ->
+            val serialized = values.map {
+               ByteString.copyFrom(serializer.serialize(it))
+            }
+            Adp.ValueBlock.newBuilder().addAllValues(serialized).build()
         }
     }
 
@@ -60,7 +59,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
             shuffleDir.mkdir()
         }
 
-        ExternalSorter(shuffleDir, comparator, tClass).sortAndWrite(scope, recChannel)
+        ExternalSorter(shuffleDir, comparator, tClass, blockSize).sortAndWrite(scope, recChannel)
         val sample = getSample(shuffleDir.resolve("block"))
 
         val request = Adp.WorkerDistribution.newBuilder()
@@ -144,7 +143,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
     override fun readMerged(scope: CoroutineScope): ReceiveChannel<T> {
         System.err.println("reading merged: awaiting")
 
-        return scope.produce {
+        return scope.produce(capacity = blockSize) {
             val flows = stubs.get().map {
                 val partId = partitionId.get()
                 val request = Adp.ShuffleInfo.newBuilder()
@@ -157,9 +156,13 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
             System.err.println("got flows")
 
             val channels = flows.map { flow ->
-                produce {
+                produce(capacity = blockSize / flows.size) {
                     val serializer = KryoSerializer(tClass)
-                    flow.collect { send(serializer.deserialize(it.value.toByteArray())) }
+                    flow.buffer(blockSize / flows.size).collect {
+                        for (value in it.valuesList) {
+                            send(serializer.deserialize(value.toByteArray()))
+                        }
+                    }
                 }
             }
 
@@ -173,6 +176,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
             while (!pq.isEmpty()) {
                 val (v, i) = pq.poll()
                 channels[i].receiveOrNull()?.also { pq.add(it toN i) }
+                println("got $v")
                 send(v)
             }
         }
