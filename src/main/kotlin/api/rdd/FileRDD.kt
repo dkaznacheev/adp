@@ -18,6 +18,7 @@ class FileRDD<T>(master: Master,
     }
 }
 
+
 inline fun <reified T> fileRdd(master: Master, filename: String, kryo: Kryo = Kryo()): FileRDD<T> {
     return FileRDD(master, kryo, filename, T::class.java)
 }
