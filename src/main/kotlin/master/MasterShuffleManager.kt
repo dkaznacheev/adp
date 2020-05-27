@@ -47,11 +47,11 @@ class MasterShuffleManager<T>(val shuffleId: Int,
                             true
                         }
                     }
-                    false
                 }
                         .filterIndexed { i, _ -> i % rangeSize == 1 }
                         .take(workers.size - 1)
-                        .toList()
+                        .toList().also{println(it)}
+
                 finalDistribution.map { ByteString.copyFrom(serializer.serialize(it)) }
             }
         }

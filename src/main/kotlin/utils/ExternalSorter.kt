@@ -101,8 +101,8 @@ class ExternalSorter<T>(private val shuffleDir: File,
         val middle = (right + left) / 2
 
         val a1 = scope.async { mergeBlocks(scope, left, middle) }
-        val a2 = scope.async { mergeBlocks(scope, middle, right) }
         a1.await()
+        val a2 = scope.async { mergeBlocks(scope, middle, right) }
         a2.await()
 
         System.err.println("merging files $left $right")

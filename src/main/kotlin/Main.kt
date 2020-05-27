@@ -4,6 +4,7 @@ import io.ktor.client.request.get
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import master.GrpcMaster
+import master.LocalMaster
 import repl.REPLInterpreter
 //import master.LocalMaster
 import rowdata.ColumnDataType
@@ -87,14 +88,13 @@ fun multiWorkerTest(port: Int) {
 fun numberCount(port: Int) {
     val workers = File("workers.conf").readLines()
     val master = GrpcMaster(port, workers)
-    LinesRDD(master, "tmp.csv")
+    LinesRDD(master, "numbers.txt")
         .map {
-            val parts = it.split(",")
-            parts[0] toN parts[1].toInt()
+            it.toInt() toN 1
         }
         .reduceByKey { a, b -> a + b }
         .map { (a, b) -> "$a: $b"}
-        .show()
+        .saveAsText("counts.txt")
 }
 
 fun singleWorkerTest() {
@@ -121,7 +121,7 @@ class Main {
                 "worker" -> Worker(args[1].toInt()).startRPC()
                 "master" -> {
                     measureTimeMillis {
-                        multiWorkerTest(args[1].toInt())
+                         numberCount(args[1].toInt())
                     }.also { println("completed in $it ms") }
                 }
                 "repl" -> {
