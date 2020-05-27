@@ -43,8 +43,13 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
         return flow<List<T>> {
             System.err.println("awaiting part$workerNum")
             val file = blocks.get()[workerNum]
-            serializer.readFileFlow(file, blockSize, this)
-        }.map<List<T>, Adp.ValueBlock> { values ->
+            try {
+                serializer.readFileFlow(file, blockSize, this)
+            } catch (e: Throwable) {
+                e.printStackTrace()
+            }
+        }.flowOn(Dispatchers.IO).map<List<T>, Adp.ValueBlock> { values ->
+            println("sending block")
             val serialized = values.map {
                ByteString.copyFrom(serializer.serialize(it))
             }

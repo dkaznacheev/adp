@@ -95,11 +95,13 @@ class KryoSerializer<T>(val clazz: Class<T>, val kryo: Kryo = Kryo()): Serialize
             var buffer = mutableListOf<T>()
             while (!input.eof()) {
                 if (buffer.size >= bufferSize) {
+                    println("emitting block")
                     flowCollector.emit(buffer)
                     buffer = mutableListOf()
                 }
                 buffer.add(kryo.readObject(input, clazz))
             }
+            println("emitting block")
             flowCollector.emit(buffer)
             input.close()
         }
