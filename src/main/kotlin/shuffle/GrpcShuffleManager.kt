@@ -28,6 +28,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
 
     private val SAMPLE_RATE = ctx.sampleRate
     private val blockSize = ctx.blockSize
+    private val blockBufferSize = ctx.blockBufferSize
 
     private val masterStub = MasterGrpcKt.MasterCoroutineStub(ManagedChannelBuilder.forTarget(masterAddress)
             .usePlaintext()
@@ -44,7 +45,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
             System.err.println("awaiting part$workerNum")
             val file = blocks.get()[workerNum]
             try {
-                serializer.readFileFlow(file, blockSize, this)
+                serializer.readFileFlow(file, blockBufferSize, this)
             } catch (e: Throwable) {
                 e.printStackTrace()
             }
@@ -54,7 +55,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
                ByteString.copyFrom(serializer.serialize(it))
             }
             Adp.ValueBlock.newBuilder().addAllValues(serialized).build()
-        }
+        }.flowOn(Dispatchers.IO)
     }
 
     override suspend fun writeAndBroadcast(
