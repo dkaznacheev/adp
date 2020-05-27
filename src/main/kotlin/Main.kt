@@ -91,14 +91,18 @@ fun singleWorkerTest() {
         .sorted()
         .show()
 }
-
-fun main(args: Array<String>) {
-    if (args.isNotEmpty() && args[0] == "worker") {
-        Worker(args[1].toInt()).startRPC()
-    } else {
-        //TestService(8085, 10L).start()
-        measureTimeMillis {
-            singleWorkerTest()
-        }.also { println("completed in $it ms") }
+class Main {
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            if (args.isNotEmpty() && args[0] == "worker") {
+                Worker(args[1].toInt()).startRPC()
+            } else {
+                //TestService(8085, 10L).start()
+                measureTimeMillis {
+                    singleWorkerTest()
+                }.also { println("completed in $it ms") }
+            }
+        }
     }
 }
