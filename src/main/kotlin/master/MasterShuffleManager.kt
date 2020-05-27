@@ -32,8 +32,23 @@ class MasterShuffleManager<T>(val shuffleId: Int,
                 }
 
                 distributions.sortWith(comparator)
+
                 val rangeSize = distributions.size / (workers.size)
-                val finalDistribution = distributions
+                var t: T? = null
+                val finalDistribution = distributions.filter {
+                    if (t == null) {
+                        t = it
+                        true
+                    } else {
+                        if (comparator.compare(t, it) == 0) {
+                            false
+                        } else {
+                            t = it
+                            true
+                        }
+                    }
+                    false
+                }
                         .filterIndexed { i, _ -> i % rangeSize == 1 }
                         .take(workers.size - 1)
                         .toList()

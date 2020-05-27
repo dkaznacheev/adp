@@ -4,12 +4,16 @@ import io.ktor.client.request.get
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import master.GrpcMaster
+import repl.REPLInterpreter
 //import master.LocalMaster
 import rowdata.ColumnDataType
 import utils.SerUtils
 import utils.toN
 import worker.Worker
 import java.io.File
+import java.io.FileOutputStream
+import kotlin.math.abs
+import kotlin.random.Random
 import kotlin.system.measureTimeMillis
 
 fun sertest() {
@@ -67,9 +71,9 @@ fun sertest() {
 //}
 
 
-fun simpleTest() {
+fun multiWorkerTest(port: Int) {
     val workers = File("workers.conf").readLines()
-    val master = GrpcMaster(8099, workers)
+    val master = GrpcMaster(port, workers)
     LinesRDD(master, "tmp.csv")
         .map {
             val parts = it.split(",")
@@ -91,17 +95,37 @@ fun singleWorkerTest() {
         .sorted()
         .show()
 }
+
 class Main {
     companion object {
         @JvmStatic
         fun main(args: Array<String>) {
-            if (args.isNotEmpty() && args[0] == "worker") {
-                Worker(args[1].toInt()).startRPC()
-            } else {
-                //TestService(8085, 10L).start()
-                measureTimeMillis {
-                    singleWorkerTest()
-                }.also { println("completed in $it ms") }
+            if (args.isEmpty()) {
+                println("no args provided: expected master/worker <port>/repl")
+                return
+            }
+            when (args[0]) {
+                "worker" -> Worker(args[1].toInt()).startRPC()
+                "master" -> {
+                    measureTimeMillis {
+                        multiWorkerTest(args[1].toInt())
+                    }.also { println("completed in $it ms") }
+                }
+                "repl" -> {
+                    REPLInterpreter.main(args)
+                }
+
+                "generate" -> {
+                    val n = args[2].toInt()
+                    val random = Random(System.currentTimeMillis())
+                    File(args[1]).bufferedWriter().use {
+                        for (i in 1..n) {
+                            it.write((abs(random.nextInt()) % 10000).toString())
+                            it.newLine()
+                        }
+                    }
+                }
+                else -> println("no such mode ${args[1]}")
             }
         }
     }

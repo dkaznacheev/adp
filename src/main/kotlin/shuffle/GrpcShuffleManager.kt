@@ -24,11 +24,12 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
                             private val shuffleId: Int,
                             private val comparator: Comparator<T>,
                             private val tClass: Class<T>): WorkerShuffleManager<T> {
-    private val masterAddress = "localhost:8099"
+    private val masterAddress = ctx.masterAddress
+
     private val outPath = File("shuffle/outg")
     private val shuffleDir = outPath.resolve("shuffle$shuffleId")
 
-    private val SAMPLE_RATE = 1.0
+    private val SAMPLE_RATE = ctx.sampleRate
 
     private val masterStub = MasterGrpcKt.MasterCoroutineStub(ManagedChannelBuilder.forTarget(masterAddress)
             .usePlaintext()

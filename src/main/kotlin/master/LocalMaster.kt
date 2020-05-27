@@ -10,6 +10,7 @@ import utils.NPair
 import worker.CacheManager
 import utils.SerUtils
 import worker.WorkerContext
+import java.io.File
 
 class LocalMaster: Master {
     override fun <T, R> execute(op: ParallelOperation<T, R>): R {
