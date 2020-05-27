@@ -4,11 +4,13 @@ import api.rdd.LinesRDD
 import api.rdd.RDD
 import api.rdd.fileRdd
 import api.rdd.map
+import master.GrpcMaster
 import master.LocalMaster
 import master.Master
 import org.jetbrains.kotlin.cli.common.repl.AggregatedReplStageState
 import org.jetbrains.kotlin.cli.common.repl.ReplCodeLine
 import org.jetbrains.kotlin.cli.common.repl.ReplCompileResult
+import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.script.experimental.annotations.KotlinScript
@@ -67,7 +69,14 @@ class REPLInterpreter(
     companion object {
         @JvmStatic
         fun main(args:Array<String>) {
-            val holder = ReceiverHolder(LocalMaster())
+
+            val master = if (args[1] == "local") {
+                LocalMaster()
+            } else {
+                val workers = File("workers.conf").readLines()
+                GrpcMaster(args[2].toInt(), workers)
+            }
+            val holder = ReceiverHolder(master)
 
             val compilationConf = createJvmCompilationConfigurationFromTemplate<SimpleScript> {
                 jvm { dependenciesFromCurrentContext(wholeClasspath = true) }

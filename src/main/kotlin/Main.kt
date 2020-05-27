@@ -84,6 +84,19 @@ fun multiWorkerTest(port: Int) {
         .show()
 }
 
+fun numberCount(port: Int) {
+    val workers = File("workers.conf").readLines()
+    val master = GrpcMaster(port, workers)
+    LinesRDD(master, "tmp.csv")
+        .map {
+            val parts = it.split(",")
+            parts[0] toN parts[1].toInt()
+        }
+        .reduceByKey { a, b -> a + b }
+        .map { (a, b) -> "$a: $b"}
+        .show()
+}
+
 fun singleWorkerTest() {
     val workers = File("workers.conf").readLines().take(1)
     val master = GrpcMaster(8099, workers)

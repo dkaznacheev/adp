@@ -1,12 +1,9 @@
 package api.rdd
 
-import api.operations.CacheOperation
+import api.operations.*
 import master.Master
 import worker.WorkerContext
 //import api.operations.CacheOperation
-import api.operations.ReduceOperation
-import api.operations.SaveAsObjectOperation
-import api.operations.errorZero
 //import api.operations.SaveAsCsvOperation
 //import api.operations.SaveAsObjectOperation
 import com.esotericsoftware.kryo.Kryo
@@ -30,6 +27,9 @@ inline fun <reified T> RDD<T>.saveAsObject(name: String) {
     master.execute(SaveAsObjectOperation(this, name, T::class.java))
 }
 
+inline fun <reified T> RDD<T>.saveAsText(name: String) {
+    master.execute(SaveAsTextOperation(this, name, T::class.java))
+}
 
 inline fun <reified T, reified R> RDD<T>.map(noinline f: suspend (T) -> R): RDD<R> {
     return MappedRDD(this, R::class.java, f)
