@@ -40,7 +40,7 @@ message Distribution {
 
 service Worker {
   rpc execute(Operation) returns (Value) {}
-  rpc shuffleRead(ShuffleInfo) returns (stream ValueBlock) {}
+  rpc shuffleRead(ShuffleInfo) returns (stream Value) {}
 }
 
 service Master {

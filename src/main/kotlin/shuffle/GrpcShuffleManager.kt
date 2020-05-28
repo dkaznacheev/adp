@@ -38,23 +38,15 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
     private val blocks = LazyChannel<List<File>>()
     private val stubs = LazyChannel<List<WorkerGrpcKt.WorkerCoroutineStub>>()
 
-    fun blockFor(workerNum: Int): Flow<Adp.ValueBlock> {
+    fun blockFor(workerNum: Int): Flow<Adp.Value> {
         System.err.println("got request for $workerNum")
         val serializer = KryoSerializer(tClass)
-        return flow<List<T>> {
+        return flow<T> {
             System.err.println("awaiting part$workerNum")
             val file = blocks.get()[workerNum]
-            try {
-                serializer.readFileFlow(file, blockBufferSize, this)
-            } catch (e: Throwable) {
-                e.printStackTrace()
-            }
-        }.flowOn(Dispatchers.IO).map<List<T>, Adp.ValueBlock> { values ->
-            println("sending block")
-            val serialized = values.map {
-               ByteString.copyFrom(serializer.serialize(it))
-            }
-            Adp.ValueBlock.newBuilder().addAllValues(serialized).build()
+            serializer.readFileFlow(file, blockBufferSize, this)
+        }.flowOn(Dispatchers.IO).map<T, Adp.Value> {
+            Adp.Value.newBuilder().setValue(ByteString.copyFrom(serializer.serialize(it))).build()
         }.flowOn(Dispatchers.IO)
     }
 
@@ -165,9 +157,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
                 produce(capacity = blockSize / flows.size) {
                     val serializer = KryoSerializer(tClass)
                     flow.buffer(blockSize / flows.size).collect {
-                        for (value in it.valuesList) {
-                            send(serializer.deserialize(value.toByteArray()))
-                        }
+                        send(serializer.deserialize(it.value.toByteArray()))
                     }
                 }
             }

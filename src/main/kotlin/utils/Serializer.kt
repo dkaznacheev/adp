@@ -16,7 +16,7 @@ abstract class Serializer<T>: Serializable {
     abstract fun deserialize(s: ByteArray): T
     abstract fun readFileSync(file: File): Iterator<T>
     abstract fun readFile(file: File, scope: CoroutineScope): ReceiveChannel<T>
-    abstract suspend fun readFileFlow(file: File, bufferSize: Int, flowCollector: FlowCollector<List<T>>)
+    abstract suspend fun readFileFlow(file: File, bufferSize: Int, flowCollector: FlowCollector<T>)
     abstract suspend fun writeToFile(recChannel: ReceiveChannel<T>, outFile: File)
     abstract fun writeToOutput(output: Output, o: T)
     abstract fun writeToFile(elements: Iterator<T>, outFile: File)
@@ -89,20 +89,12 @@ class KryoSerializer<T>(val clazz: Class<T>, val kryo: Kryo = Kryo()): Serialize
         output.close()
     }
 
-    override suspend fun readFileFlow(file: File, bufferSize: Int, flowCollector: FlowCollector<List<T>>) {
+    override suspend fun readFileFlow(file: File, bufferSize: Int, flowCollector: FlowCollector<T>) {
         withContext(Dispatchers.IO) {
             val input = Input(BufferedInputStream(FileInputStream(file)))
-            var buffer = mutableListOf<T>()
             while (!input.eof()) {
-                if (buffer.size >= bufferSize) {
-                    println("emitting block")
-                    flowCollector.emit(buffer)
-                    buffer = mutableListOf()
-                }
-                buffer.add(kryo.readObject(input, clazz))
+                flowCollector.emit(kryo.readObject(input, clazz))
             }
-            println("emitting block")
-            flowCollector.emit(buffer)
             input.close()
         }
     }
