@@ -145,20 +145,21 @@ class ExternalSorter<T>(private val shuffleDir: File,
 }
 
 fun main() {
-    val es = ExternalSorter<Int>(File("local"), Comparator { a, b -> b - a }, Int::class.java, 1000000)
+    val es = ExternalSorter<Int>(File("local"), Comparator { a, b -> b - a }, Int::class.java, 10000)
     measureTimeMillis {
         runBlocking {
             es.sortAndWrite(this, produce {
                 val random = Random(System.currentTimeMillis())
                 repeat(100) {
-                    repeat(1000000) {
+                    repeat(1000) {
                         send(Math.abs(random.nextInt()) % 100000)
                     }
                 }
             })
         }
-    }.also { println("completed in ${it / 1000} s") }
+    }.also { println("completed in ${it} s") }
 }
-
+//100k, 1 buffer -> 22s
+//100k, 10000 buffer -> 0.5s
 // 100m numbers, 1m buffer -> 114s async
 // 100m numbers, 1m buffer -> 145s sync
