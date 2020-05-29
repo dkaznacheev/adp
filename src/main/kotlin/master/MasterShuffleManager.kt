@@ -16,6 +16,29 @@ class MasterShuffleManager<T>(val shuffleId: Int,
     private val distributionChannel = Channel<Adp.WorkerDistribution>(10000)
     private var distribution: Deferred<List<ByteString>>? = null
 
+    fun getDistibutionParts(sample: List<T>, parts: Int): List<T> {
+        val rangeSize = sample.size / (parts)
+        var t: T? = null
+        val unique = sample.filter {
+            if (t == null) {
+                t = it
+                true
+            } else {
+                if (comparator.compare(t, it) == 0) {
+                    false
+                } else {
+                    t = it
+                    true
+                }
+            }
+        }
+
+        return unique.filterIndexed { i, _ -> i % rangeSize == 0 }
+                .take(parts)
+                .drop(1)
+                .toList()
+    }
+
     fun listenForDistributions(scope: CoroutineScope,
                                workers: List<String>) {
         scope.launch {
@@ -33,25 +56,8 @@ class MasterShuffleManager<T>(val shuffleId: Int,
 
                 distributions.sortWith(comparator)
 
-                val rangeSize = distributions.size / (workers.size)
-                var t: T? = null
-                val finalDistribution = distributions.filter {
-                    if (t == null) {
-                        t = it
-                        true
-                    } else {
-                        if (comparator.compare(t, it) == 0) {
-                            false
-                        } else {
-                            t = it
-                            true
-                        }
-                    }
-                }
-                        .filterIndexed { i, _ -> i % rangeSize == 1 }
-                        .take(workers.size - 1)
-                        .toList().also{println(it)}
-
+                val finalDistribution = getDistibutionParts(distributions, workers.size)
+                println(finalDistribution)
                 finalDistribution.map { ByteString.copyFrom(serializer.serialize(it)) }
             }
         }

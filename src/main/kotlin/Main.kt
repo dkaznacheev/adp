@@ -85,10 +85,10 @@ fun multiWorkerTest(port: Int) {
         .show()
 }
 
-fun numberCount(port: Int) {
-    val workers = File("workers.conf").readLines()
+fun numberCount(filename: String, workerNum: Int, port: Int) {
+    val workers = File("workers.conf").readLines().take(workerNum)
     val master = GrpcMaster(port, workers)
-    LinesRDD(master, "numbers.txt")
+    LinesRDD(master, filename)
         .map {
             it.toInt() toN 1
         }
@@ -97,6 +97,15 @@ fun numberCount(port: Int) {
         .saveAsText("counts.txt")
 }
 
+fun httpMap(filename: String, workerNum: Int, port: Int) {
+    val workers = File("workers.conf").readLines().take(workerNum)
+    val master = GrpcMaster(port, workers)
+    LinesRDD(master, filename)
+            .mapHTTP {
+                get<String>("https://postman-echo.com/get?value=$it")[18].toInt() - 48
+            }
+            .reduce(0) { a, b -> (a + b) % 10000 }.also{ println(it) }
+}
 fun singleWorkerTest() {
     val workers = File("workers.conf").readLines().take(1)
     val master = GrpcMaster(8099, workers)
@@ -121,7 +130,13 @@ class Main {
                 "worker" -> Worker(args[1].toInt()).startRPC()
                 "master" -> {
                     measureTimeMillis {
-                         numberCount(args[1].toInt())
+                        val workerNum = args[1].toInt()
+                        val filename = "numbers$workerNum.txt"
+                        val port = 8099
+                        when (args[2]) {
+                            "http" -> httpMap(filename, workerNum, port)
+                            "count" -> numberCount(filename, workerNum, port)
+                        }
                     }.also { println("completed in $it ms") }
                 }
                 "repl" -> {
@@ -141,5 +156,6 @@ class Main {
                 else -> println("no such mode ${args[1]}")
             }
         }
+
     }
 }
