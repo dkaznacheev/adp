@@ -24,7 +24,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
     private val masterAddress = ctx.masterAddress
 
     private val outPath = File("shuffle")
-    private val shuffleDir = outPath.resolve("shuffle$shuffleId")
+    private val shuffleDir: File
 
     private val blockSize = ctx.blockSize
     private val blockBufferSize = ctx.blockBufferSize
@@ -36,6 +36,13 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
     private val partitionId = LazyChannel<Int>()
     private val blocks = LazyChannel<List<File>>()
     private val stubs = LazyChannel<List<WorkerGrpcKt.WorkerCoroutineStub>>()
+
+    init {
+        if (!outPath.exists()) {
+            outPath.mkdir()
+        }
+        shuffleDir = outPath.resolve("shuffle$shuffleId")
+    }
 
     fun blockFor(workerNum: Int): Flow<Adp.Value> {
         System.err.println("got request for $workerNum")

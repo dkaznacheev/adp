@@ -1,4 +1,0 @@
-https://postman-echo.com/get?test5
-https://postman-echo.com/get?test6
-https://postman-echo.com/get?test7
-https://postman-echo.com/get?test8
