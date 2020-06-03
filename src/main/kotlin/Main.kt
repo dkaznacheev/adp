@@ -6,6 +6,7 @@ import utils.toN
 import worker.Worker
 import java.io.File
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.random.Random
 import kotlin.system.measureTimeMillis
 
@@ -18,8 +19,8 @@ fun numberCount(count: Int, workerNum: Int, port: Int) {
             (abs(it) % 100) toN 1
         }
         .reduceByKey { a, b -> a + b }
-        .map { 1 }
-        .reduce(0) { a, b -> a + b }
+        .reduce(-1 toN -1) { a, b -> if (a.second > b.second) a else b}
+        .also { println("most popular is ${it?.first} with ${it?.second} times") }
 }
 
 fun httpMap(count: Int, workerNum: Int, port: Int) {
