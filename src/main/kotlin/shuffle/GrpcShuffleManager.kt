@@ -23,7 +23,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
                             private val tClass: Class<T>): WorkerShuffleManager<T> {
     private val masterAddress = ctx.masterAddress
 
-    private val outPath = File("shuffle/outg")
+    private val outPath = File("shuffle")
     private val shuffleDir = outPath.resolve("shuffle$shuffleId")
 
     private val SAMPLE_RATE = ctx.sampleRate
@@ -132,8 +132,10 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
     fun getSample(file: File): List<ByteString> {
         val random = Random(System.currentTimeMillis())
         val serializer = KryoSerializer(tClass)
+        val count = serializer.readFileSync(file).asSequence().count()
+        val sample = (0 until count).shuffled().take(50).toSet()
         return serializer.readFileSync(file).asSequence()
-                .filter { random.nextDouble(0.0, 1.0) < SAMPLE_RATE }
+                .filterIndexed { index, _ ->  sample.contains(index)}
                 .map { ByteString.copyFrom(serializer.serialize(it)) }
                 .toList()
     }

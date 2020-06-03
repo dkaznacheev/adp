@@ -10,24 +10,25 @@ import kotlin.random.Random
 import kotlin.system.measureTimeMillis
 
 
-fun numberCount(filename: String, workerNum: Int, port: Int) {
+fun numberCount(count: Int, workerNum: Int, port: Int) {
     val workers = File("workers.conf").readLines().take(workerNum)
     val master = GrpcMaster(port, workers)
-    LinesRDD(master, filename)
+    RandomRDD(master, count)
         .map {
-            it.toInt() toN 1
+            (abs(it) % 100) toN 1
         }
         .reduceByKey { a, b -> a + b }
-        .map { (a, b) -> "$a: $b"}
-        .saveAsText("counts.txt")
+        .map { 1 }
+        .reduce(0) { a, b -> a + b }
 }
 
-fun httpMap(filename: String, workerNum: Int, port: Int) {
+fun httpMap(count: Int, workerNum: Int, port: Int) {
     val workers = File("workers.conf").readLines().take(workerNum)
     val master = GrpcMaster(port, workers)
-    LinesRDD(master, filename)
+    RandomRDD(master, count)
             .mapHTTP {
-                get<String>("https://postman-echo.com/get?value=$it")[18].toInt() - 48
+                val n = abs(it) % 10
+                get<String>("https://postman-echo.com/get?value=$n")[18].toInt() - 48
             }
             .reduce(0) { a, b -> (a + b) % 10000 }.also{ println(it) }
 }
@@ -45,11 +46,11 @@ class Main {
                 "master" -> {
                     measureTimeMillis {
                         val workerNum = args[1].toInt()
-                        val filename = "numbers$workerNum.txt"
+                        val count = args[2].toInt()
                         val port = 8099
-                        when (args[2]) {
-                            "http" -> httpMap(filename, workerNum, port)
-                            "count" -> numberCount(filename, workerNum, port)
+                        when (args[3]) {
+                            "http" -> httpMap(count, workerNum, port)
+                            "count" -> numberCount(count, workerNum, port)
                         }
                     }.also { println("completed in $it ms") }
                 }
@@ -72,3 +73,4 @@ class Main {
         }
     }
 }
+

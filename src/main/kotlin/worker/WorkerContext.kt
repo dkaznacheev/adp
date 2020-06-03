@@ -43,3 +43,11 @@ class WorkerContext(
         }
     }
 }
+
+/*
+
+sampleRate=0.05
+masterAddress=ec2-13-53-103-60.eu-north-1.compute.amazonaws.com:8099
+blockSize=1000
+
+ */
