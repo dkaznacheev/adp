@@ -6,9 +6,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
-import utils.KryoSerializer
-import utils.SerUtils
-import utils.kryoSerializer
+import utils.*
 
 class MasterShuffleManager<T>(val shuffleId: Int,
                               private val comparator: Comparator<T>,
@@ -17,7 +15,6 @@ class MasterShuffleManager<T>(val shuffleId: Int,
     private var distribution: Deferred<List<ByteString>>? = null
 
     fun getDistibutionParts(sample: List<T>, parts: Int): List<T> {
-        val rangeSize = sample.size / (parts)
         var t: T? = null
         val unique = sample.filter {
             if (t == null) {
@@ -33,6 +30,7 @@ class MasterShuffleManager<T>(val shuffleId: Int,
             }
         }
 
+        val rangeSize = unique.size / (parts)
         return unique.filterIndexed { i, _ -> i % rangeSize == 0 }
                 .take(parts)
                 .drop(1)
@@ -51,11 +49,12 @@ class MasterShuffleManager<T>(val shuffleId: Int,
                     val dst = distributionChannel.receive()
                     workersRemaining.remove(dst.workerId)
                     val sample = dst.sampleList.map { serializer.deserialize(it.toByteArray()) }
+                    println("sample $sample")
                     distributions.addAll(sample)
                 }
 
                 distributions.sortWith(comparator)
-
+                println("Distributions: $distributions")
                 val finalDistribution = getDistibutionParts(distributions, workers.size)
                 println(finalDistribution)
                 finalDistribution.map { ByteString.copyFrom(serializer.serialize(it)) }
