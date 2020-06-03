@@ -26,7 +26,6 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
     private val outPath = File("shuffle")
     private val shuffleDir = outPath.resolve("shuffle$shuffleId")
 
-    private val SAMPLE_RATE = ctx.sampleRate
     private val blockSize = ctx.blockSize
     private val blockBufferSize = ctx.blockBufferSize
 

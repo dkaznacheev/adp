@@ -38,7 +38,10 @@ class Main {
         @JvmStatic
         fun main(args: Array<String>) {
             if (args.isEmpty()) {
-                println("no args provided: expected master/worker <port>/repl")
+                println("no args provided, expected:\n" +
+                        "    master <worker number> <dataset size> (http|count)\n" +
+                        "    worker <port>\n" +
+                        "    repl")
                 return
             }
             when (args[0]) {
@@ -46,7 +49,7 @@ class Main {
                 "master" -> {
                     measureTimeMillis {
                         val workerNum = args[1].toInt()
-                        val count = args[2].toInt()
+                        val count = args[2].toInt() / workerNum
                         val port = 8099
                         when (args[3]) {
                             "http" -> httpMap(count, workerNum, port)
@@ -56,17 +59,6 @@ class Main {
                 }
                 "repl" -> {
                     REPLInterpreter.main(args)
-                }
-
-                "generate" -> {
-                    val n = args[2].toInt()
-                    val random = Random(System.currentTimeMillis())
-                    File(args[1]).bufferedWriter().use {
-                        for (i in 1..n) {
-                            it.write((abs(random.nextInt()) % 10000).toString())
-                            it.newLine()
-                        }
-                    }
                 }
                 else -> println("no such mode ${args[1]}")
             }

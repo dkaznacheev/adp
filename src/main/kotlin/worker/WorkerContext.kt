@@ -8,7 +8,6 @@ import java.util.*
 class WorkerContext(
         val shuffleManagers: MutableMap<Int, GrpcShuffleManager<*>>,
         val cache: CacheManager) {
-    val sampleRate: Double
     val masterAddress: String
     val blockSize: Int
     val blockBufferSize: Int
@@ -22,7 +21,6 @@ class WorkerContext(
 
         }
 
-        sampleRate = properties["sampleRate"]?.toString()?.toDouble() ?: 1.0
         masterAddress = properties["masterAddress"]?.toString() ?: "localhost:8080"
         blockSize = properties["blockSize"]?.toString()?.toInt() ?: 1000
         blockBufferSize = properties["blockBufferSize"]?.toString()?.toInt() ?: 100
@@ -43,11 +41,3 @@ class WorkerContext(
         }
     }
 }
-
-/*
-
-sampleRate=0.05
-masterAddress=ec2-13-53-103-60.eu-north-1.compute.amazonaws.com:8099
-blockSize=1000
-
- */
