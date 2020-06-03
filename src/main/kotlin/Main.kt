@@ -1,89 +1,14 @@
 import api.rdd.*
-import io.ktor.client.HttpClient
 import io.ktor.client.request.get
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import master.GrpcMaster
-import master.LocalMaster
 import repl.REPLInterpreter
-//import master.LocalMaster
-import rowdata.ColumnDataType
-import utils.SerUtils
 import utils.toN
 import worker.Worker
 import java.io.File
-import java.io.FileOutputStream
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.system.measureTimeMillis
 
-fun sertest() {
-    val f: suspend (Int) -> Int = {
-        println("!!!")
-        it * it
-    }
-    val ba = SerUtils.serialize(f)
-    val g = SerUtils.deserialize(ba) as (suspend ((Int) -> Int))
-
-    GlobalScope.launch {
-        println(g(100))
-    }
-}
-
-//fun reduceByKeyGrpcTest() {
-//    val workers = File("workers.conf").readLines()
-//    val master = GrpcMaster(8099, workers)
-//    fileRdd<String>(master, "tmp.csv")
-//        .map {
-//            val parts = it.split(",")
-//            parts[0] to parts[1].toInt()
-//        }
-//        .reduceByKey { a, b -> a + b }
-//        .saveAsObject(SerUtils.getPairSerializer<String, Int>(),"shuffled.txt")
-//}
-//
-//fun reduceGrpcFileTest() {
-//    val workers = File("workers.conf").readLines()
-//    val master = GrpcMaster(8099, workers)
-//    fileRdd<String>(master,"tmp.csv")
-//            .map { it.split(",")[1].toInt() }
-//            .reduce { a, b -> a + b}
-//            .also { println(it) }
-//}
-//
-//fun reduceHTTPTest() {
-//    val workers = File("workers.conf").readLines()
-//    val master = GrpcMaster(8099, workers)
-//    fileRdd<Int>(master,"numbers.txt")
-//            .mapHTTP {
-//                val t = get<String>("http://localhost:8085/echo?value=$it")
-//                t.length
-//            }
-//            .reduce { a, b -> a + b}
-//            .also { println(it) }
-//}
-//
-//fun saveAsObjectInlineTest() {
-//    val workers = File("workers.conf").readLines()
-//    val master = GrpcMaster(8099, workers)
-//    fileRdd<Int>(master,"numbers.txt")
-//            .map { it.toString() }
-//            .saveAsObject("file.txt")
-//}
-
-
-fun multiWorkerTest(port: Int) {
-    val workers = File("workers.conf").readLines()
-    val master = GrpcMaster(port, workers)
-    LinesRDD(master, "tmp.csv")
-        .map {
-            val parts = it.split(",")
-            parts[0] toN parts[1].toInt()
-        }
-        .reduceByKey { a, b -> a + b }
-        .map { (a, b) -> "$a: $b"}
-        .show()
-}
 
 fun numberCount(filename: String, workerNum: Int, port: Int) {
     val workers = File("workers.conf").readLines().take(workerNum)
@@ -105,17 +30,6 @@ fun httpMap(filename: String, workerNum: Int, port: Int) {
                 get<String>("https://postman-echo.com/get?value=$it")[18].toInt() - 48
             }
             .reduce(0) { a, b -> (a + b) % 10000 }.also{ println(it) }
-}
-fun singleWorkerTest() {
-    val workers = File("workers.conf").readLines().take(1)
-    val master = GrpcMaster(8099, workers)
-    LinesRDD(master, "tmp.csv")
-        .map {
-            val parts = it.split(",")
-            parts[1].toInt()
-        }
-        .sorted()
-        .show()
 }
 
 class Main {
@@ -156,6 +70,5 @@ class Main {
                 else -> println("no such mode ${args[1]}")
             }
         }
-
     }
 }
