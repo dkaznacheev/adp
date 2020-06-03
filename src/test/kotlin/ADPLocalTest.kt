@@ -3,6 +3,7 @@ import master.LocalMaster
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import utils.toN
+import java.io.File
 
 class ADPLocalTest {
     @Test
@@ -24,9 +25,13 @@ class ADPLocalTest {
     fun reduceByKeyTest() {
         val master = LocalMaster()
         val tmpFile = createTempFile()
+        val localDir = File("local")
+        if (!localDir.exists()) {
+            localDir.mkdir()
+        }
         tmpFile.bufferedWriter().use {
             for (i in 1..100) {
-                val key = 'a' + i % 10
+                val key = 'a' + i % 3
                 it.write("$key,$i")
                 it.newLine()
             }
@@ -36,8 +41,13 @@ class ADPLocalTest {
                     val parts = it.split(",")
                     parts[0] toN  parts[1].toInt()
                 }
-                .reduceByKey { a, b -> a + b }.saveAsText("result.txt")
+                .reduceByKey { a, b ->
+                    a + b
+                }.mapSync { it.toString() }
+                .reduce("") { a, b -> a + "\n" + b }
 
-        println(sumByKeys)
+        assertEquals("a,1683\n" +
+                     "b,1717\n" +
+                     "c,1650", sumByKeys)
     }
 }
