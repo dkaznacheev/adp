@@ -57,3 +57,17 @@ ADP - система для распределённой обработки да
 * `reduce(default: T, f: (T, T) -> T)` - свёртка датасета в одно значение.
 * `saveAsObject(filename: String)` - сохранение датасета в бинарный файл для последующего чтения системой. 
 * `saveAsText(filename: String)` - сохранение датасета в текстовый файл.
+
+# Пример
+Свёртка по ключу, использующаяся в тесте `count` для вычисления самого частого числа:
+```
+val workers = File("workers.conf").readLines().take(workerNum)
+val master = GrpcMaster(port, workers)
+RandomRDD(master, count)
+    .map {
+        (abs(it) % 100) toN 1
+    }
+    .reduceByKey { a, b -> a + b }
+    .reduce(-1 toN -1) { a, b -> if (a.second > b.second) a else b}
+    .also { println("most popular is ${it?.first} with ${it?.second} times") }
+```
