@@ -3,14 +3,9 @@ package utils
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.consumeEach
-import kotlinx.coroutines.channels.produce
-import java.io.BufferedWriter
 import java.io.File
 import java.util.*
-import kotlin.Comparator
 import kotlin.NoSuchElementException
-import kotlin.random.Random
-import kotlin.system.measureTimeMillis
 
 class PeekIterator<T>(val iterator: Iterator<T>): Iterator<T> {
     var t: Optional<T> = Optional.empty()
@@ -73,6 +68,7 @@ class ExternalSorter<T>(private val shuffleDir: File,
                         private val tClass: Class<T>,
                         private val bufferSize: Int = 1000) {
 
+    @ExperimentalCoroutinesApi
     suspend fun sortAndWrite(scope: CoroutineScope, recChannel: ReceiveChannel<T>) {
         val buffer = mutableListOf<T>()
         val serializer = KryoSerializer(tClass)
@@ -143,23 +139,3 @@ class ExternalSorter<T>(private val shuffleDir: File,
         buffer.clear()
     }
 }
-
-fun main() {
-    val es = ExternalSorter<Int>(File("local"), Comparator { a, b -> b - a }, Int::class.java, 10000)
-    measureTimeMillis {
-        runBlocking {
-            es.sortAndWrite(this, produce {
-                val random = Random(System.currentTimeMillis())
-                repeat(100) {
-                    repeat(1000) {
-                        send(Math.abs(random.nextInt()) % 100000)
-                    }
-                }
-            })
-        }
-    }.also { println("completed in ${it} s") }
-}
-//100k, 1 buffer -> 22s
-//100k, 10000 buffer -> 0.5s
-// 100m numbers, 1m buffer -> 114s async
-// 100m numbers, 1m buffer -> 145s sync

@@ -1,12 +1,11 @@
 package shuffle
 
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
 import utils.ExternalSorter
 import utils.KryoSerializer
-import utils.SerUtils
 import worker.WorkerContext
 
 class LocalShuffleManager<T>(val ctx: WorkerContext,
@@ -15,6 +14,7 @@ class LocalShuffleManager<T>(val ctx: WorkerContext,
                              val tClass: Class<T>): WorkerShuffleManager<T>  {
     private val shuffleDir = createTempDir().resolve("local/shuffle$shuffleId")
 
+    @ExperimentalCoroutinesApi
     override suspend fun writeAndBroadcast(scope: CoroutineScope, recChannel: ReceiveChannel<T>) {
         if (!shuffleDir.exists()) {
             shuffleDir.mkdirs()
@@ -23,6 +23,7 @@ class LocalShuffleManager<T>(val ctx: WorkerContext,
         sorter.sortAndWrite(scope, recChannel)
     }
 
+    @ExperimentalCoroutinesApi
     override fun readMerged(scope: CoroutineScope): ReceiveChannel<T> {
         return scope.produce {
             val block = shuffleDir.resolve("block")

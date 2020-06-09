@@ -15,6 +15,7 @@ class MappedRDD<T, R>(val parent: RDD<T>,
     }
 }
 
+@Suppress("UNUSED")
 class MappedRDDImpl<T, R>(val parent: RDDImpl<T>,
                           val rClass: Class<R>,
                           val f: suspend (T) -> R): RDDImpl<R>() {

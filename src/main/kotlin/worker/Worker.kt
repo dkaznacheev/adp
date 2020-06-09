@@ -5,6 +5,7 @@ import WorkerGrpcKt
 import api.operations.ParallelOperationImpl
 import com.google.protobuf.ByteString
 import io.grpc.ServerBuilder
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import shuffle.GrpcShuffleManager
@@ -34,8 +35,9 @@ class Worker(port: Int) {
             return toGrpcValue(result)
         }
 
-        override fun shuffleRead(info: Adp.ShuffleInfo): Flow<Adp.Value> {
-            return shuffleManagers[info.shuffleId]!!.blockFor(info.shuffleWorkerNum)
+        @ExperimentalCoroutinesApi
+        override fun shuffleRead(request: Adp.ShuffleInfo): Flow<Adp.Value> {
+            return shuffleManagers[request.shuffleId]!!.blockFor(request.shuffleWorkerNum)
         }
     }
 

@@ -14,7 +14,7 @@ class MasterShuffleManager<T>(val shuffleId: Int,
     private val distributionChannel = Channel<Adp.WorkerDistribution>(10000)
     private var distribution: Deferred<List<ByteString>>? = null
 
-    fun getDistibutionParts(sample: List<T>, parts: Int): List<T> {
+    private fun getDistibutionParts(sample: List<T>, parts: Int): List<T> {
         var t: T? = null
         val unique = sample.filter {
             if (t == null) {

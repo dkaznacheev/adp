@@ -1,20 +1,16 @@
 package api.rdd
 
-import worker.WorkerContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
-import kotlinx.coroutines.launch
-//import master.LocalMaster
 import master.MasterShuffleManager
-import utils.SerUtils
 import shuffle.GrpcShuffleManager
 import shuffle.LocalShuffleManager
-//import shuffle.LocalShuffleManager
 import shuffle.WorkerShuffleManager
 import utils.NPair
 import utils.toN
-import kotlin.Comparator
+import worker.WorkerContext
 import kotlin.math.abs
 
 
@@ -30,6 +26,7 @@ fun <K, T> pairComparator(cmp: Comparator<K> = defaultComparator()): Comparator<
     return kotlin.Comparator { n1, n2 -> cmp.compare(n1.first, n2.first) }
 }
 
+@Suppress("UNCHECKED_CAST")
 class ReduceByKeyRDD<K, T>(val parent: RDD<NPair<K, T>>,
                            val keyComparator: (K, K) -> Int,
                            val f: (T, T) -> T): RDD<NPair<K, T>>(parent.master, NPair::class.java as Class<NPair<K, T>>) {
@@ -52,6 +49,7 @@ abstract class ReduceByKeyRDDImpl<K, T>(val parent: RDDImpl<NPair<K, T>>,
 
     abstract fun getShuffleManager(ctx: WorkerContext, shuffleId: Int): WorkerShuffleManager<NPair<K, T>>
 
+    @ExperimentalCoroutinesApi
     override fun channel(scope: CoroutineScope, ctx: WorkerContext): ReceiveChannel<NPair<K, T>> {
         val recChannel = parent.channel(scope, ctx)
         val shuffleManager = getShuffleManager(ctx, shuffleId)

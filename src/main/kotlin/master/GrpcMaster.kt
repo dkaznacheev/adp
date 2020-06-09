@@ -11,15 +11,14 @@ import api.rdd.SortedGrpcRDDImpl
 import com.google.protobuf.ByteString
 import io.grpc.ManagedChannelBuilder
 import io.grpc.ServerBuilder
-import kotlinx.coroutines.*
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.runBlocking
 import utils.KryoSerializer
 import utils.NPair
-import utils.SerUtils
-import utils.Serializer
-import java.lang.Exception
 
-class GrpcMaster(private val port: Int, private val workers: List<String>): Master {
+class GrpcMaster(port: Int, private val workers: List<String>): Master {
     private val shuffleManagers = mutableMapOf<Int, MasterShuffleManager<*>>()
 
     private val channels = workers.map { address ->

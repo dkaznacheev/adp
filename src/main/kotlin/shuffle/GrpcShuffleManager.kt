@@ -2,6 +2,7 @@ package shuffle
 
 import Adp
 import MasterGrpcKt
+import WorkerGrpcKt
 import api.rdd.pairComparator
 import com.esotericsoftware.kryo.io.Output
 import com.google.protobuf.ByteString
@@ -15,7 +16,6 @@ import worker.WorkerContext
 import java.io.File
 import java.io.FileOutputStream
 import java.util.*
-import kotlin.random.Random
 
 class GrpcShuffleManager<T>(val ctx: WorkerContext,
                             private val shuffleId: Int,
@@ -44,6 +44,8 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
         shuffleDir = outPath.resolve("shuffle$shuffleId")
     }
 
+    @ObsoleteCoroutinesApi
+    @ExperimentalCoroutinesApi
     fun blockFor(workerNum: Int): Flow<Adp.Value> {
         System.err.println("got request for $workerNum")
         val serializer = KryoSerializer(tClass)
@@ -56,6 +58,7 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
         }.flowOn(Dispatchers.IO)
     }
 
+    @ExperimentalCoroutinesApi
     override suspend fun writeAndBroadcast(
             scope: CoroutineScope,
             recChannel: ReceiveChannel<T>) {
@@ -130,13 +133,11 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
             currentOutput.flush()
             currentOutput.close()
             System.err.println("setting part$blockId")
-            //blocks.get()[blockId].set(shuffleDir.resolve("part$blockId"))
             System.err.println("set part$blockId")
         }
     }
 
-    fun getSample(file: File): List<ByteString> {
-        val random = Random(System.currentTimeMillis())
+    private fun getSample(file: File): List<ByteString> {
         val serializer = KryoSerializer(tClass)
         val count = serializer.readFileSync(file).asSequence().count()
         val sample = (0 until count).shuffled().take(50).toSet()
@@ -146,6 +147,8 @@ class GrpcShuffleManager<T>(val ctx: WorkerContext,
                 .toList()
     }
 
+    @ObsoleteCoroutinesApi
+    @ExperimentalCoroutinesApi
     override fun readMerged(scope: CoroutineScope): ReceiveChannel<T> {
         System.err.println("reading merged: awaiting")
 

@@ -3,7 +3,6 @@ package repl
 import api.rdd.LinesRDD
 import api.rdd.RDD
 import api.rdd.fileRdd
-import api.rdd.map
 import master.GrpcMaster
 import master.LocalMaster
 import master.Master
@@ -19,7 +18,6 @@ import kotlin.script.experimental.api.ScriptEvaluationConfiguration
 import kotlin.script.experimental.api.implicitReceivers
 import kotlin.script.experimental.jvm.dependenciesFromCurrentContext
 import kotlin.script.experimental.jvm.jvm
-import kotlin.script.experimental.jvm.util.classpathFromClassloader
 import kotlin.script.experimental.jvmhost.createJvmCompilationConfigurationFromTemplate
 import kotlin.script.experimental.jvmhost.createJvmEvaluationConfigurationFromTemplate
 import kotlin.script.experimental.jvmhost.repl.JvmReplCompiler
@@ -57,10 +55,13 @@ class REPLInterpreter(
     }
 
     class ReceiverHolder(val master: Master) {
+
+        @Suppress("UNUSED")
         inline fun <reified T> fileRDD(s: String): RDD<T> {
             return fileRdd(master, s)
         }
 
+        @Suppress("UNUSED")
         fun linesRDD(s: String): RDD<String> {
             return LinesRDD(master, s)
         }
@@ -89,7 +90,7 @@ class REPLInterpreter(
             val repl = REPLInterpreter(compilationConf, evaluationConf)
             repl.eval("import api.rdd.*")
             print("> ")
-            var builder = StringBuilder("\n")
+            val builder = StringBuilder("\n")
             System.`in`.bufferedReader().lineSequence().forEach {
                 if (it.endsWith("\\")) {
                     builder.append(it.trimEnd('\\'))

@@ -1,18 +1,10 @@
 package utils
 
-import com.esotericsoftware.kryo.Kryo
-import com.esotericsoftware.kryo.io.Input
-import com.esotericsoftware.kryo.io.Output
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.ReceiveChannel
-import kotlinx.coroutines.channels.produce
-import kotlinx.coroutines.flow.FlowCollector
-import kotlinx.coroutines.withContext
-import org.apache.commons.lang3.SerializationUtils
-import java.io.*
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.ObjectInputStream
+import java.io.ObjectOutputStream
 import java.util.*
-import kotlin.reflect.KClass
 
 object SerUtils {
     fun serialize(o: Any?): ByteArray {
@@ -22,29 +14,9 @@ object SerUtils {
         return bos.toByteArray()
     }
 
-    fun ser(o: Any): ByteArray{
-        return SerializationUtils.serialize(o as Serializable)
-    }
-
     fun deserialize(serialized: ByteArray): Any {
         return ObjectInputStream(ByteArrayInputStream(serialized)).readObject()
     }
-//    fun serialize(o: Any?): ByteArray {
-//        val kryo = Kryo()
-//        return synchronized(kryo) {
-//            val ba = ByteArrayOutputStream()
-//            val output = Output(ba)
-//            kryo.writeObject(output, o)
-//            output.flush()
-//            ba.toByteArray()
-//        }
-//    }
-//
-//    fun deserialize(serialized: ByteArray): Any {
-//        val kryo = Kryo()
-//        val input = Input(ByteArrayInputStream(serialized))
-//        return kryo.readObject(input, Any::class.java)
-//    }
 
     fun base64encode(a: ByteArray): String {
         return String(Base64.getEncoder().encode(a))

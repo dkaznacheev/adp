@@ -2,6 +2,7 @@ package api.rdd
 
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
 import master.Master
@@ -16,6 +17,7 @@ class RandomRDD(master: Master,
 }
 
 class RandomRDDImpl(val count: Int): RDDImpl<Int>() {
+    @ExperimentalCoroutinesApi
     override fun channel(scope: CoroutineScope, ctx: WorkerContext): ReceiveChannel<Int> {
         return scope.produce {
             val random = Random(System.currentTimeMillis())

@@ -19,6 +19,7 @@ class MetaData(val schema: List<ColumnDesc>, val separator: String = ",") {
 
     fun indexOf(col: String): Int? = colMappings[col]
 
+    @Suppress("UNUSED")
     fun parseRow(s: String): Row {
         val values = s.split(separator)
             .zip(schema)
@@ -34,6 +35,7 @@ class MetaData(val schema: List<ColumnDesc>, val separator: String = ",") {
     }
 
     companion object {
+        @Suppress("UNUSED")
         fun parseMeta(firstLine: String, hasHeader: Boolean, separator: String, types: List<ColumnDataType>?): MetaData {
             val tokens = firstLine.split(separator)
             val actualTypes = types ?: generateSequence { STRING }.take(tokens.size).toList()
@@ -64,18 +66,22 @@ class Row(private val meta: MetaData, private val values: List<Any?>) {
         return values.joinToString(meta.separator) { it.toString() }
     }
 
+    @Suppress("UNUSED")
     fun getInt(col: String): Int? {
         return get(col) as Int?
     }
 
+    @Suppress("UNUSED")
     fun getString(col: String): String? {
         return get(col) as String?
     }
 
+    @Suppress("UNUSED")
     fun getDouble(col: String): Double? {
         return get(col) as Double?
     }
 
+    @Suppress("UNUSED")
     fun getBoolean(col: String): Boolean? {
         return get(col) as Boolean?
     }

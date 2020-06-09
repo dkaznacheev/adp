@@ -10,6 +10,7 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import kotlinx.coroutines.delay
 
+@Suppress("UNUSED")
 class TestService(val port: Int, val delay: Long) {
     private val server = embeddedServer(Netty, port) {
         routing {

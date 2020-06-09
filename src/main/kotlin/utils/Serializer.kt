@@ -5,6 +5,7 @@ import com.esotericsoftware.kryo.io.Input
 import com.esotericsoftware.kryo.io.Output
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.flow.FlowCollector
@@ -22,15 +23,12 @@ abstract class Serializer<T>: Serializable {
     abstract fun writeToFile(elements: Iterator<T>, outFile: File)
 }
 
-inline fun <reified T, reified U> getPairSerializer(): Serializer<Pair<T, U>> {
-    return KryoSerializer(Pair::class.java) as Serializer<Pair<T, U>> // TODO FIX
-}
-
+@Suppress("UNUSED")
 inline fun <reified T> kryoSerializer(kryo: Kryo = Kryo()): KryoSerializer<T> {
     return KryoSerializer(T::class.java, kryo)
 }
 
-class KryoSerializer<T>(val clazz: Class<T>, val kryo: Kryo = Kryo()): Serializer<T>() {
+class KryoSerializer<T>(private val clazz: Class<T>, private val kryo: Kryo = Kryo()): Serializer<T>() {
     override fun serialize(o: T): ByteArray {
         val ba = ByteArrayOutputStream()
         val output = Output(ba)
@@ -45,6 +43,7 @@ class KryoSerializer<T>(val clazz: Class<T>, val kryo: Kryo = Kryo()): Serialize
         return kryo.readObject(input, clazz)
     }
 
+    @ExperimentalCoroutinesApi
     override fun readFile(file: File, scope: CoroutineScope): ReceiveChannel<T> {
         return scope.produce {
             withContext(Dispatchers.IO) {

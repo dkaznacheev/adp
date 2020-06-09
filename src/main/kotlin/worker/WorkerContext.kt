@@ -34,6 +34,7 @@ class WorkerContext(
     var workerId: String? = null
 
     companion object {
+        @Suppress("UNUSED")
         fun stub(): WorkerContext {
             return WorkerContext(
             mutableMapOf(),

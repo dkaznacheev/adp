@@ -12,6 +12,7 @@ class MappedSyncRDD<T, R>(val parent: RDD<T>, rClass: Class<R>, val f: suspend (
 }
 
 class MappedSyncRDDImpl<T, R>(val parent: RDDImpl<T>, val f: suspend (T) -> R): RDDImpl<R>() {
+    @Suppress("DEPRECATION")
     @ExperimentalCoroutinesApi
     override fun channel(scope: CoroutineScope, ctx: WorkerContext): ReceiveChannel<R> {
         return parent.channel(scope, ctx).map { f(it) }

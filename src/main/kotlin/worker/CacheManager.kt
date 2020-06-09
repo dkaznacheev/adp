@@ -1,6 +1,7 @@
 package worker
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
 import utils.SerUtils
@@ -45,7 +46,9 @@ class CacheManager(val capacity: Int) {
         }
     }
 
-    fun <T> load(id: Int, scope: CoroutineScope, tClass: Class<T>): ReceiveChannel<T> {
+    @ExperimentalCoroutinesApi
+    @Suppress("UNCHECKED_CAST")
+    fun <T> load(id: Int, scope: CoroutineScope): ReceiveChannel<T> {
         return scope.produce {
             val cached = cache[id] ?: mutableListOf<Any?>()
             for (o in cached) {

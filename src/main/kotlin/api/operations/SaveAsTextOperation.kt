@@ -1,6 +1,5 @@
 package api.operations
 
-import worker.WorkerContext
 import api.SUCCESS
 import api.rdd.RDD
 import api.rdd.RDDImpl
@@ -10,12 +9,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.reduce
 import kotlinx.coroutines.withContext
-import utils.KryoSerializer
+import worker.WorkerContext
 import java.io.File
 
 class SaveAsTextOperation<T>(rdd: RDD<T>,
-                               val name: String,
-                               tClass: Class<T>): ParallelOperation<T, Byte>(rdd, Byte::class.java) {
+                             val name: String): ParallelOperation<T, Byte>(rdd, Byte::class.java) {
     override fun toImpl(): ParallelOperationImpl<T, Byte> {
         return SaveAsTextOperationImpl(
             rdd.toImpl(),
@@ -24,6 +22,7 @@ class SaveAsTextOperation<T>(rdd: RDD<T>,
         )
     }
 
+    @Suppress("DEPRECATION")
     override suspend fun consumeParts(channel: ReceiveChannel<Byte>): Byte {
         return channel.reduce {_, _ -> SUCCESS }
     }

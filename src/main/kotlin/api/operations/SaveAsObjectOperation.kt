@@ -12,8 +12,7 @@ import utils.KryoSerializer
 import java.io.File
 
 class SaveAsObjectOperation<T>(rdd: RDD<T>,
-                               val name: String,
-                               tClass: Class<T>): ParallelOperation<T, Byte>(rdd, Byte::class.java) {
+                               val name: String): ParallelOperation<T, Byte>(rdd, Byte::class.java) {
     override fun toImpl(): ParallelOperationImpl<T, Byte> {
         return SaveAsObjectOperationImpl(
             rdd.toImpl(),
@@ -22,6 +21,7 @@ class SaveAsObjectOperation<T>(rdd: RDD<T>,
         )
     }
 
+    @Suppress("DEPRECATION")
     override suspend fun consumeParts(channel: ReceiveChannel<Byte>): Byte {
         return channel.reduce {_, _ -> SUCCESS }
     }
@@ -38,11 +38,11 @@ class SaveAsObjectOperationImpl<T>(rdd: RDDImpl<T>,
     override suspend fun execute(scope: CoroutineScope, ctx: WorkerContext): Byte {
         val recChannel = rdd.channel(scope, ctx)
         val outFile = File(name)
-        writeToFile(scope, recChannel, outFile)
+        writeToFile(recChannel, outFile)
         return SUCCESS
     }
 
-    private suspend fun writeToFile(scope: CoroutineScope, recChannel: ReceiveChannel<T>, outFile: File) {
+    private suspend fun writeToFile(recChannel: ReceiveChannel<T>, outFile: File) {
         KryoSerializer(tClass).writeToFile(recChannel, outFile)
     }
 }

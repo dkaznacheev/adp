@@ -1,20 +1,14 @@
 package api.rdd
 
-import worker.WorkerContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
-import kotlinx.coroutines.launch
-//import master.LocalMaster
 import master.MasterShuffleManager
-import utils.SerUtils
 import shuffle.GrpcShuffleManager
 import shuffle.LocalShuffleManager
-//import shuffle.LocalShuffleManager
 import shuffle.WorkerShuffleManager
-import utils.NPair
-import utils.toN
-import kotlin.Comparator
+import worker.WorkerContext
 import kotlin.math.abs
 
 
@@ -38,6 +32,7 @@ abstract class SortedRDDImpl<T>(val parent: RDDImpl<T>,
 
     abstract fun getShuffleManager(ctx: WorkerContext, shuffleId: Int): WorkerShuffleManager<T>
 
+    @ExperimentalCoroutinesApi
     override fun channel(scope: CoroutineScope, ctx: WorkerContext): ReceiveChannel<T> {
         val recChannel = parent.channel(scope, ctx)
         val shuffleManager = getShuffleManager(ctx, shuffleId)
@@ -59,6 +54,7 @@ class SortedGrpcRDDImpl<T>(parent: RDDImpl<T>,
                            comparator: (T, T) -> Int,
                            tClass: Class<T>):
         SortedRDDImpl<T>(parent, shuffleId, comparator, tClass) {
+    @ExperimentalCoroutinesApi
     override fun getShuffleManager(ctx: WorkerContext, shuffleId: Int): WorkerShuffleManager<T> {
         val manager = GrpcShuffleManager<T>(ctx, shuffleId, kotlin.Comparator(comparator), tClass)
         ctx.addShuffleManager(shuffleId, manager)
@@ -72,6 +68,7 @@ class LocalSortedRDDImpl<T>(parent: RDDImpl<T>,
                             keyComparator: (T, T) -> Int,
                             tClass: Class<T>):
         SortedRDDImpl<T>(parent, shuffleId, keyComparator, tClass) {
+    @ExperimentalCoroutinesApi
     override fun getShuffleManager(ctx: WorkerContext, shuffleId: Int): WorkerShuffleManager<T> {
         return LocalShuffleManager<T>(ctx, shuffleId, kotlin.Comparator(comparator), tClass)
     }
